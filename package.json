@@ -32,6 +32,7 @@
     "format": "biome format --write ."
   },
   "dependencies": {
+    "@sigstore/bundle": "^5.0.0",
     "@sigstore/verify": "^4.1.2",
     "tar-stream": "^3.2.1"
   },
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.11",
     "@earendil-works/pi-tui": "^0.84.3",
+    "@sigstore/tuf": "^5.0.0",
     "@types/node": "^22",
     "typescript": "^5.9.0",
     "vitest": "^4.1.11"

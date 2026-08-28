@@ -21,7 +21,11 @@ function assembleScanners(config: VetterConfig): SecurityScanner[] {
   const scanners: SecurityScanner[] = [
     createMetadataScanner(createMaintainerSnapshotStore()),
     createOsvScanner(config.scanners.osv?.timeoutMs ?? 10_000),
-    createProvenanceScanner(config.scanners.provenance?.timeoutMs ?? 10_000),
+    createProvenanceScanner({
+      ...(config.scanners.provenance?.timeoutMs !== undefined
+        ? { timeoutMs: config.scanners.provenance.timeoutMs }
+        : {}),
+    }),
     staticScanner,
     diffScanner,
   ].filter((s) => config.scanners[s.name]?.enabled !== false);
