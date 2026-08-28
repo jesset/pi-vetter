@@ -130,6 +130,13 @@ function lookupFailedNote(name: string, err: unknown): string {
   return `- ${name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`;
 }
 
+/** Parse an `npm:<pkg>[@<version>]` spec into its name and optional version. */
+function parseSpec(spec: string): { name: string; version?: string } {
+  const body = spec.slice("npm:".length);
+  const at = body.lastIndexOf("@");
+  return at > 0 ? { name: body.slice(0, at), version: body.slice(at + 1) } : { name: body };
+}
+
 export async function resolveTargets(
   deps: VetDeps,
   specs: string[],
@@ -143,7 +150,7 @@ export async function resolveTargets(
   const installed = deps.listInstalled();
 
   if (specs.length === 0) {
-    progress?.startResolve(installed.length);
+    progress?.startResolve(installed.map((p) => p.name));
     await runPool(
       installed,
       async (pkg) => {
@@ -162,24 +169,21 @@ export async function resolveTargets(
         } catch (err) {
           notes.push(lookupFailedNote(pkg.name, err));
         }
-        progress?.tick();
+        progress?.tick(pkg.name);
       },
       { concurrency: CONCURRENCY },
     );
     return { targets, notes };
   }
 
-  progress?.startResolve(specs.length);
+  progress?.startResolve(specs.map((s) => parseSpec(s).name || s));
   await runPool(
     specs,
     async (spec) => {
-      const body = spec.slice("npm:".length);
-      const at = body.lastIndexOf("@");
-      const name = at > 0 ? body.slice(0, at) : body;
-      const explicitVersion = at > 0 ? body.slice(at + 1) : undefined;
+      const { name, version: explicitVersion } = parseSpec(spec);
       if (!name) {
         notes.push(`- ${spec}: could not parse package name`);
-        progress?.tick();
+        progress?.tick(spec);
         return;
       }
       progress?.item(name);
@@ -202,7 +206,7 @@ export async function resolveTargets(
       } catch (err) {
         notes.push(lookupFailedNote(name, err));
       }
-      progress?.tick();
+      progress?.tick(name);
     },
     { concurrency: CONCURRENCY },
   );
@@ -213,10 +217,10 @@ const CONCURRENCY = 3;
 
 /** Duck-typed surface of ProgressTracker; injected so the command layer stays UI-free. */
 export interface ProgressPort {
-  startResolve(total: number): void;
-  start(total: number): void;
+  startResolve(names: string[]): void;
+  start(names: string[]): void;
   item(name: string): void;
-  tick(): void;
+  tick(name: string): void;
 }
 
 export async function runVet(
@@ -227,7 +231,7 @@ export async function runVet(
   const parsed = parseArgs(rawArgs);
   if ("error" in parsed) throw new Error(parsed.error);
   const { targets, notes } = await resolveTargets(deps, parsed.specs, progress);
-  progress?.start(targets.length);
+  progress?.start(targets.map((t) => t.candidate.name));
 
   const engineDeps: EngineDeps = {
     scanners: deps.scanners,
@@ -248,7 +252,7 @@ export async function runVet(
     async (target) => {
       const report = await evaluate(engineDeps, target);
       reports.push(report);
-      progress?.tick();
+      progress?.tick(target.candidate.name);
     },
     {
       concurrency: CONCURRENCY,
@@ -257,7 +261,7 @@ export async function runVet(
         notes.push(
           `- ${target.candidate.name}@${target.candidate.version}: evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
         );
-        progress?.tick();
+        progress?.tick(target.candidate.name);
       },
     },
   );

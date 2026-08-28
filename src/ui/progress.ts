@@ -1,44 +1,52 @@
 type Phase = "idle" | "resolving" | "vetting";
+type RowState = "pending" | "inflight" | "done";
+
+const MARK: Record<RowState, string> = { pending: "·", inflight: "…", done: "✓" };
 
 /** Renderable progress state for the evaluation widget (setWidget takes string[]). */
 export class ProgressTracker {
   private phase: Phase = "idle";
-  private total = 0;
+  private names: string[] = [];
+  private states: RowState[] = [];
   private done = 0;
-  private current: string | null = null;
 
   constructor(private readonly title: string) {}
 
-  startResolve(total: number): void {
-    this.phase = "resolving";
-    this.total = total;
-    this.done = 0;
-    this.current = null;
+  startResolve(names: string[]): void {
+    this.reset("resolving", names);
   }
 
-  start(total: number): void {
-    this.phase = "vetting";
-    this.total = total;
-    this.done = 0;
-    this.current = null;
+  start(names: string[]): void {
+    this.reset("vetting", names);
   }
 
   item(name: string): void {
-    this.current = name;
+    const i = this.names.findIndex((n, i) => n === name && this.states[i] === "pending");
+    if (i >= 0) this.states[i] = "inflight";
   }
 
-  tick(): void {
-    this.done += 1;
-    this.current = null;
+  tick(name: string): void {
+    const i = this.names.findIndex((n, i) => n === name && this.states[i] !== "done");
+    if (i >= 0) {
+      this.states[i] = "done";
+      this.done += 1;
+    }
   }
 
   lines(): string[] {
     if (this.phase === "idle") return [`${this.title}…`];
     const label = this.phase === "resolving" ? "resolving packages" : "vetting";
     const base =
-      this.done >= this.total
-        ? `${this.title}: ${label} (${this.done}/${this.total}) done`
-        : `${this.title}: ${label} (${this.done}/${this.total})`;
-    return this.current ? [base, `→ ${this.current}`] : [base];
+      this.done >= this.names.length
+        ? `${this.title}: ${label} (${this.done}/${this.names.length}) done`
+        : `${this.title}: ${label} (${this.done}/${this.names.length})`;
+    return [base, ...this.names.map((n, i) => `${MARK[this.states[i] ?? "pending"]} ${n}`)];
+  }
+
+  private reset(phase: Phase, names: string[]): void {
+    this.phase = phase;
+    this.names = names;
+    this.states = names.map(() => "pending");
+    this.done = 0;
   }
 }

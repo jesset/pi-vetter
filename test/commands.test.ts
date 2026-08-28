@@ -133,7 +133,7 @@ describe("resolveTargets", () => {
     };
     const { targets } = await resolveTargets(d, [], progress);
     expect(targets).toHaveLength(1);
-    expect(progress.startResolve).toHaveBeenCalledWith(2);
+    expect(progress.startResolve).toHaveBeenCalledWith(["pkg", "pinned-pkg"]);
     expect(progress.tick).toHaveBeenCalledTimes(2);
   });
 });

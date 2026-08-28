@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Progress widget (#18): per-package checklist rows (`·` pending / `…` in-flight / `✓` done) during both the resolving and vetting phases, replacing the single `(done/total) → current` counter whose "current package" line was unstable under concurrent evaluation; rows carry no verdicts — conclusions stay in the final batched report
+
 ## [0.2.3] - 2026-08-28
 
 ### Added
