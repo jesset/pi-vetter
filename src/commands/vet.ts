@@ -102,7 +102,15 @@ export async function resolveTargets(
         notes.push(`- ${pkg.name}: pinned (${pkg.source}); skipped by design`);
         continue;
       }
-      const packument = await deps.fetchPackument(pkg.name);
+      let packument: Awaited<ReturnType<VetDeps["fetchPackument"]>>;
+      try {
+        packument = await deps.fetchPackument(pkg.name);
+      } catch (err) {
+        notes.push(
+          `- ${pkg.name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        continue;
+      }
       const latest = latestVersion(packument);
       if (!latest || !pkg.version) {
         notes.push(`- ${pkg.name}: could not determine latest/installed version`);
@@ -126,7 +134,15 @@ export async function resolveTargets(
       notes.push(`- ${spec}: could not parse package name`);
       continue;
     }
-    const packument = await deps.fetchPackument(name);
+    let packument: Awaited<ReturnType<VetDeps["fetchPackument"]>>;
+    try {
+      packument = await deps.fetchPackument(name);
+    } catch (err) {
+      notes.push(
+        `- ${name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      continue;
+    }
     const version = explicitVersion ?? latestVersion(packument);
     if (!version || !packument.versions[version]) {
       notes.push(`- ${name}: version ${version ?? "(latest)"} not found on registry`);
