@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-28
+
 ### Changed
 
 - Deep dependency scanning (#7): the transitive dependency closure (BFS from registry metadata, bounded by depth 2 / 20 packages by default, configurable and switchable via `dependencies.*`) is downloaded in-memory and statically scanned; hits surface as informational evidence attributed per dependency (`undici@8.10.0: obfuscation x2`) without affecting the verdict in this phase
