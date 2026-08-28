@@ -1,6 +1,6 @@
 {
   "name": "pi-vetter",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Security vetting for Pi extension packages — evidence-driven evaluation before install/update",
   "type": "module",
   "main": "src/index.ts",

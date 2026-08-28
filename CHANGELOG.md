@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-08-28
+## [0.2.2] - 2026-08-28
+
+### Added
+
+- CI: tests/typecheck/lint on every branch and PR; v* tags now release fully automatically (GitHub Release + npm publish via Trusted Publishing with provenance)
 
 ### Fixed
 
