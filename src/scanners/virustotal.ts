@@ -43,10 +43,14 @@ async function vtFetch(
 export function createVirustotalScanner(options: {
   apiKey: string;
   timeoutMs?: number;
+  pollDeadlineMs?: number;
   fetchImpl?: FetchLike;
   pollIntervalMs?: number;
 }): SecurityScanner {
   const { apiKey, timeoutMs = 60_000, pollIntervalMs = POLL_INTERVAL_MS } = options;
+  // Whole upload+poll flow is bounded, not just each individual request —
+  // otherwise 30 polls with slow responses could stall a package for minutes.
+  const pollDeadlineMs = options.pollDeadlineMs ?? timeoutMs;
   const doFetch = options.fetchImpl ?? ((url: string, init?: RequestInit) => fetch(url, init));
 
   return {
@@ -95,8 +99,10 @@ export function createVirustotalScanner(options: {
         const analysisId = uploaded.data?.id;
         if (!analysisId) throw new Error("VirusTotal upload returned no analysis id");
 
-        // Async analysis: poll until completed, then read the stats.
-        for (let i = 0; i < MAX_POLLS; i++) {
+        // Async analysis: poll until completed or the total deadline hits,
+        // whichever comes first.
+        const deadline = Date.now() + pollDeadlineMs;
+        for (let i = 0; i < MAX_POLLS && Date.now() < deadline; i++) {
           await new Promise((r) => setTimeout(r, pollIntervalMs));
           const analysis = await vtFetch(
             `${VT_API}/analyses/${analysisId}`,

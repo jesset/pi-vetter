@@ -84,6 +84,27 @@ describe("virustotal scanner", () => {
     expect((uploadCall?.[1] as { method: string }).method).toBe("POST");
   });
 
+  it("bounds the upload+poll total duration to a deadline", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(json({}, 404))
+      .mockResolvedValueOnce(json({ data: { id: "analysis-1" } }))
+      .mockImplementation(() =>
+        Promise.resolve(json({ data: { attributes: { status: "queued" } } })),
+      );
+    const scanner = createVirustotalScanner({
+      apiKey: "k",
+      fetchImpl,
+      pollIntervalMs: 5,
+      pollDeadlineMs: 60,
+    });
+    const result = await scanner.scan(ctx());
+    expect(result.status).toBe("timeout");
+    // hash lookup + upload + deadline-bounded polls (well under the
+    // unbounded 30-poll ceiling)
+    expect(fetchImpl.mock.calls.length).toBeLessThan(20);
+  });
+
   it("maps quota rejections to quota-exhausted status", async () => {
     const fetchImpl = vi.fn(() => Promise.resolve(json({ error: {} }, 429)));
     const scanner = createVirustotalScanner({ apiKey: "k", fetchImpl, pollIntervalMs: 1 });
