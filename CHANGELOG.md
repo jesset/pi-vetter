@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Install-scenario false-positive reduction (#12): with no baseline to diff against, credential-access and obfuscation static hits stay informational (a package's legitimate nature, e.g. API-key readers) while prompt-injection remains a hard signal; update-scenario behaviour unchanged
 - Responsibility rebalance (#16): pinned packages are now evaluated on every `/vet` (marked "baseline is pinned" — the previous behaviour skipped them entirely); `install.pinOnInstall` defaults to **false**, so approved installs no longer silently rewrite the settings entry to a pinned spec — the install result shows the exact pin command for users who want it. ADR-0003 revised accordingly
 
 ### Changed

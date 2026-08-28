@@ -40,7 +40,7 @@ Fail-closed: if any **enabled** scanner fails or times out, the verdict is cappe
 | L0 | `metadata` | npm registry packument: maintainers (local snapshot diff), package age, release cadence, deprecation, downloads |
 | L1 | `osv` | osv.dev querybatch — covers CVE + GitHub Advisories (GHSA) + OpenSSF malicious packages (MAL-); new dependencies are queried too |
 | L1 | `provenance` | npm attestations: full sigstore signature-chain verification against a vendored public TrustedRoot, plus declared-repo conflict detection; verified bundles yield `provenance:verified` |
-| L2 | `static` | pattern scan of code files: credential access, obfuscation, prompt-injection markers, eval family; pre-existing hits are info, new hits are findings |
+| L2 | `static` | pattern scan of code files: credential access, obfuscation, prompt-injection markers, eval family; pre-existing hits are info, new hits are findings; in the install scenario (no baseline) credential/obfuscation hits stay informational while prompt-injection remains a hard signal |
 | L2 | `diff` | old-vs-new tarball comparison: new lifecycle scripts, new dependencies, new child_process usage, new outbound endpoints |
 | L3 | `virustotal` | hash-first lookup, upload on miss (uploads of new files do not consume the daily quota); ≥2 engine detections → DENY. Disabled by default; enable with an API key |
 | L3 | `socket` | Socket.dev package alerts (gptMalware, installScripts, obfuscatedFile, typosquatting...); high-risk alerts → ASK (`socket-flagged`). Disabled by default — note the free tier allows only ~5 purl scans/hour, so expect routine quota-exhaustion (which caps verdicts at ASK) if enabled |

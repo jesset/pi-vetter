@@ -30,14 +30,21 @@ export const staticScanner: SecurityScanner = {
     for (const [key, hits, baselineHits] of categories) {
       if (hits.length === 0) continue;
       const isNew = !baseline || baselineHits === undefined || baselineHits.length === 0;
+      // Install scenario (no baseline): credential/obfuscation hits are almost
+      // always the package's legitimate nature (e.g. API-key readers), so they
+      // stay informational; prompt-injection remains a hard signal either way.
+      const installDowngraded = baseline === null && key !== "static:prompt-injection";
       const sample = hits.slice(0, 3).join("; ");
+      const fail = isNew && !installDowngraded;
       evidences.push({
         scanner: "static",
         key,
-        status: isNew ? "fail" : "info",
-        detail: isNew
+        status: fail ? "fail" : "info",
+        detail: fail
           ? `${key.replace("static:", "")} markers found (${hits.length}): ${sample}`
-          : `pre-existing ${key.replace("static:", "")} markers (${hits.length}), unchanged signal`,
+          : installDowngraded && isNew
+            ? `${key.replace("static:", "")} markers present (${hits.length}); informational without a baseline to compare against`
+            : `pre-existing ${key.replace("static:", "")} markers (${hits.length}), unchanged signal`,
         data: hits,
       });
     }
