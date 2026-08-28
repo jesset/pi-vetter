@@ -69,6 +69,8 @@ function ctx(opts?: {
           : opts.baselineFiles,
       candidatePackument: opts?.packument ?? packument(),
       candidateIntegrity: "sha512-x",
+      candidateTarball: new Uint8Array(0),
+      candidateSha256: "abc",
       downloads: 1000,
     },
   };

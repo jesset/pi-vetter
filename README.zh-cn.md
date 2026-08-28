@@ -42,8 +42,9 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 | L1 | `provenance` | npm attestations：源仓库矛盾检测（完整签名链验证留待 Phase 2） |
 | L2 | `static` | 代码文件模式扫描：凭据访问、混淆特征、prompt-injection 标记、eval 族；既有命中为 info，新命中为 finding |
 | L2 | `diff` | 新旧 tarball 对比：新增 lifecycle 脚本、新增依赖、新增 child_process、新增外联端点 |
+| L3 | `virustotal` | 先按哈希查询已有样本、未命中再上传（上传新文件不消耗每日配额）；≥2 引擎检出 → DENY。默认关闭，配置 API key 启用 |
 
-Phase 2（可选，默认关闭）：VirusTotal 上传、Socket.dev。
+可选 L3 引擎默认关闭，在配置文件中按 API key 逐个启用。当已启用引擎配额耗尽或失败时，判定封顶为 ASK（fail-closed），证据中说明原因。
 
 ### 规则
 

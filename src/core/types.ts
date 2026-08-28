@@ -91,6 +91,10 @@ export interface Artifacts {
   baselineFiles: TarFiles | null;
   candidatePackument: Packument;
   candidateIntegrity: string;
+  /** Raw candidate tarball bytes (integrity-verified; used for engine uploads). */
+  candidateTarball: Uint8Array;
+  /** sha256 of the raw candidate tarball (VirusTotal lookup key). */
+  candidateSha256: string;
   downloads: number;
 }
 

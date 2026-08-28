@@ -24,3 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Per-package streaming reports, concurrent package evaluation (3 workers) and network-wide timeouts (`network.timeoutMs`, default 30s) — previously a full run could appear frozen for minutes
 - Static eval-family hits render as info evidence (no rule mapped) instead of a misleading fail marker; multi-package reports ordered DENY > ASK > ALLOW
 - Per-package registry failures degrade to notes instead of aborting the whole evaluation
+
+### Added (post-verification)
+
+- VirusTotal scanner (L3, opt-in via API key): hash-first report lookup, upload-on-miss of the exact vetted tarball bytes, async analysis polling; ≥2 engine detections → DENY (`vt-detections`); quota/timeout failures cap the verdict at ASK; hash-report results cached forever

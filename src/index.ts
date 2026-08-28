@@ -4,32 +4,43 @@ import { createFileCache } from "./cache.ts";
 import { runVet } from "./commands/vet.ts";
 import { runVetInstall } from "./commands/vet-install.ts";
 import { createMaintainerSnapshotStore, dataDir, loadConfig } from "./config.ts";
-import type { SecurityScanner } from "./core/types.ts";
+import type { SecurityScanner, VetterConfig } from "./core/types.ts";
 import { fetchPackument } from "./npm/registry.ts";
 import { diffScanner } from "./scanners/diff.ts";
 import { createMetadataScanner } from "./scanners/metadata.ts";
 import { createOsvScanner } from "./scanners/osv.ts";
 import { createProvenanceScanner } from "./scanners/provenance.ts";
 import { staticScanner } from "./scanners/static-analysis.ts";
+import { createVirustotalScanner } from "./scanners/virustotal.ts";
 import { createPackageManager, listInstalledPackages } from "./settings.ts";
 import { renderReport } from "./ui/report.ts";
 
-function assembleScanners(): SecurityScanner[] {
-  const snapshots = createMaintainerSnapshotStore();
-  const osv = createOsvScanner(loadConfig().scanners.osv?.timeoutMs ?? 10_000);
-  const provenance = createProvenanceScanner(loadConfig().scanners.provenance?.timeoutMs ?? 10_000);
-  return [createMetadataScanner(snapshots), osv, provenance, staticScanner, diffScanner];
-}
+function assembleScanners(config: VetterConfig): SecurityScanner[] {
+  const scanners: SecurityScanner[] = [
+    createMetadataScanner(createMaintainerSnapshotStore()),
+    createOsvScanner(config.scanners.osv?.timeoutMs ?? 10_000),
+    createProvenanceScanner(config.scanners.provenance?.timeoutMs ?? 10_000),
+    staticScanner,
+    diffScanner,
+  ].filter((s) => config.scanners[s.name]?.enabled !== false);
 
-function enabledScanners(config: ReturnType<typeof loadConfig>): SecurityScanner[] {
-  return assembleScanners().filter((s) => config.scanners[s.name]?.enabled !== false);
+  const vt = config.scanners.virustotal;
+  if (vt?.enabled && vt.apiKey) {
+    scanners.push(
+      createVirustotalScanner({
+        apiKey: vt.apiKey,
+        ...(vt.timeoutMs !== undefined ? { timeoutMs: vt.timeoutMs } : {}),
+      }),
+    );
+  }
+  return scanners;
 }
 
 export default function (pi: ExtensionAPI): void {
   const config = loadConfig();
   const cache = createFileCache(join(dataDir(), "cache"), config.cache);
   const pm = createPackageManager(process.cwd());
-  const scanners = enabledScanners(config);
+  const scanners = assembleScanners(config);
 
   const vetDeps = {
     config,

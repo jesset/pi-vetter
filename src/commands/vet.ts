@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   type CacheStore,
   type EngineDeps,
@@ -82,6 +83,8 @@ export async function buildArtifacts(
     baselineFiles,
     candidatePackument: packument,
     candidateIntegrity: integrity,
+    candidateSha256: createHash("sha256").update(candidateBytes).digest("hex"),
+    candidateTarball: candidateBytes,
     downloads,
   };
 }

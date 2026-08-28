@@ -42,8 +42,9 @@ Fail-closed: if any **enabled** scanner fails or times out, the verdict is cappe
 | L1 | `provenance` | npm attestations: source-repo conflict detection (full signature-chain verification planned for Phase 2) |
 | L2 | `static` | pattern scan of code files: credential access, obfuscation, prompt-injection markers, eval family; pre-existing hits are info, new hits are findings |
 | L2 | `diff` | old-vs-new tarball comparison: new lifecycle scripts, new dependencies, new child_process usage, new outbound endpoints |
+| L3 | `virustotal` | hash-first lookup, upload on miss (uploads of new files do not consume the daily quota); ≥2 engine detections → DENY. Disabled by default; enable with an API key |
 
-Phase 2 (optional, off by default): VirusTotal upload, Socket.dev.
+Optional L3 engines are disabled by default and enabled per API key in the config file. When an enabled engine hits its quota or fails, the verdict is capped at ASK (fail-closed) and the evidence states why.
 
 ### Rules
 

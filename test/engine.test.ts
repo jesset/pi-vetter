@@ -38,6 +38,8 @@ function makeArtifacts(opts?: {
     baselineFiles: null,
     candidatePackument: makePackument(opts),
     candidateIntegrity: "sha512-abc",
+    candidateTarball: new Uint8Array(0),
+    candidateSha256: "abc123",
     downloads: 1000,
   };
 }
