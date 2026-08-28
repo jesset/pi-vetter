@@ -32,5 +32,6 @@
   "cache": { "enabled": true, "ttlHours": 24 },
   "score": { "weights": {} },
   "network": { "timeoutMs": 30000 },
-  "install": { "pinOnInstall": false }
+  "install": { "pinOnInstall": false },
+  "dependencies": { "enabled": true, "maxDepth": 2, "maxPackages": 20 }
 }

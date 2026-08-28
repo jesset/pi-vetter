@@ -26,6 +26,7 @@ export function defaultConfig(): VetterConfig {
     score: { weights: {} },
     network: { timeoutMs: 30_000 },
     install: { pinOnInstall: false },
+    dependencies: { enabled: true, maxDepth: 2, maxPackages: 20 },
   };
 }
 

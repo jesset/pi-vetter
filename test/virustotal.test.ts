@@ -26,6 +26,7 @@ function ctx(): ScannerContext {
       },
       candidateIntegrity: "sha512-x",
       candidateTarball: new TextEncoder().encode("fake-tarball"),
+      dependencyFiles: new Map(),
       candidateSha256: "a".repeat(64),
       downloads: 1,
     },

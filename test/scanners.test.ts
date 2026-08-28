@@ -70,6 +70,7 @@ function ctx(opts?: {
       candidatePackument: opts?.packument ?? packument(),
       candidateIntegrity: "sha512-x",
       candidateTarball: new Uint8Array(0),
+      dependencyFiles: new Map(),
       candidateSha256: "abc",
       downloads: 1000,
     },
@@ -230,6 +231,20 @@ describe("static scanner", () => {
       ctx({ candidateFiles: cand, baselineFiles: null, baselineVersion: null }),
     );
     expect(result.evidences.find((e) => e.key === "static:prompt-injection")?.status).toBe("fail");
+  });
+
+  it("reports dependency-tarball hits as informational evidence with attribution", async () => {
+    const ctx0 = ctx({
+      candidateFiles: files([["index.js", "module.exports = 1;\n"]]),
+    });
+    ctx0.artifacts.dependencyFiles = new Map([
+      ["left-pad@1.0.0", files([["pad.js", "const t = process.env.GITHUB_TOKEN;\n"]])],
+    ]);
+    const result = await staticScanner.scan(ctx0);
+    const ev = result.evidences.find((e) => e.key === "static:dependency-hits");
+    expect(ev?.status).toBe("info");
+    expect(ev?.detail).toContain("left-pad@1.0.0");
+    expect(ev?.detail).toContain("credential");
   });
 
   it("marks prompt injection and obfuscation", async () => {

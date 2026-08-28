@@ -89,6 +89,11 @@ export interface Packument {
 /** In-memory file map of a parsed tarball: package-internal path → raw bytes. */
 export type TarFiles = Map<string, Uint8Array>;
 
+export interface DepNode {
+  name: string;
+  version: string;
+}
+
 export interface Artifacts {
   candidateFiles: TarFiles;
   baselineFiles: TarFiles | null;
@@ -98,6 +103,8 @@ export interface Artifacts {
   candidateTarball: Uint8Array;
   /** sha256 of the raw candidate tarball (VirusTotal lookup key). */
   candidateSha256: string;
+  /** Deep-scan dependency tarballs keyed by `name@version` (empty when disabled). */
+  dependencyFiles: Map<string, TarFiles>;
   downloads: number;
 }
 
@@ -142,4 +149,5 @@ export interface VetterConfig {
   score: { weights: Partial<Record<string, number>> };
   network: { timeoutMs: number };
   install: { pinOnInstall: boolean };
+  dependencies: { enabled: boolean; maxDepth: number; maxPackages: number };
 }

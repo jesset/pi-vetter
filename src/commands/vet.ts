@@ -11,8 +11,10 @@ import type {
   EvaluationReport,
   Packument,
   SecurityScanner,
+  TarFiles,
   VetterConfig,
 } from "../core/types.ts";
+import { collectDependencies, depKey } from "../npm/dependencies.ts";
 import { fetchDownloads, latestVersion } from "../npm/registry.ts";
 import { downloadTarball, parseTarball, verifyIntegrity } from "../npm/tarball.ts";
 import type { InstalledPackage } from "../settings.ts";
@@ -52,6 +54,7 @@ export async function buildArtifacts(
   target: EvaluationTarget,
   fetcher: VetDeps["fetchPackument"],
   timeoutMs = 30_000,
+  deepScan?: VetterConfig["dependencies"],
 ): Promise<Artifacts> {
   const { candidate, baseline } = target;
   const signal = () => AbortSignal.timeout(timeoutMs);
@@ -78,6 +81,30 @@ export async function buildArtifacts(
     }
   }
 
+  const dependencyFiles = new Map<string, TarFiles>();
+  if (deepScan?.enabled) {
+    const deps = await collectDependencies(packument, candidate.version, fetcher, {
+      maxDepth: deepScan.maxDepth,
+      maxPackages: deepScan.maxPackages,
+      signal: signal(),
+    });
+    await runPool(
+      deps,
+      async (dep) => {
+        try {
+          const depPackument = await fetcher(dep.name, signal());
+          const meta = depPackument.versions[dep.version];
+          if (!meta) return;
+          const bytes = await downloadTarball(meta.dist.tarball, signal());
+          dependencyFiles.set(depKey(dep), await parseTarball(bytes));
+        } catch {
+          // a single dependency failure must not abort the evaluation
+        }
+      },
+      { concurrency: CONCURRENCY },
+    );
+  }
+
   const downloads = await fetchDownloads(candidate.name, signal());
   return {
     candidateFiles,
@@ -86,6 +113,7 @@ export async function buildArtifacts(
     candidateIntegrity: integrity,
     candidateSha256: createHash("sha256").update(candidateBytes).digest("hex"),
     candidateTarball: candidateBytes,
+    dependencyFiles,
     downloads,
   };
 }
@@ -198,7 +226,12 @@ export async function runVet(
     config: deps.config,
     cache: deps.cache,
     buildArtifacts: (target) =>
-      buildArtifacts(target, deps.fetchPackument, deps.config.network?.timeoutMs ?? 30_000),
+      buildArtifacts(
+        target,
+        deps.fetchPackument,
+        deps.config.network?.timeoutMs ?? 30_000,
+        deps.config.dependencies,
+      ),
   };
 
   const reports: EvaluationReport[] = [];

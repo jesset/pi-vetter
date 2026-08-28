@@ -51,6 +51,7 @@ describe("resolveTargets", () => {
         score: { weights: {} },
         network: { timeoutMs: 30_000 },
         install: { pinOnInstall: false },
+        dependencies: { enabled: false, maxDepth: 2, maxPackages: 20 },
       },
       cache: { get: () => Promise.resolve(null), set: () => Promise.resolve() },
       scanners: [],

@@ -73,6 +73,7 @@ describe("filterEnabled", () => {
     score: { weights: {} },
     network: { timeoutMs: 30_000 },
     install: { pinOnInstall: false },
+    dependencies: { enabled: false, maxDepth: 2, maxPackages: 20 },
   };
 
   it("drops findings whose rule is disabled", () => {

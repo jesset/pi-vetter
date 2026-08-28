@@ -30,6 +30,7 @@ function ctx(repo = "git+https://github.com/sigstore/sigstore-js.git"): ScannerC
       candidatePackument: packument,
       candidateIntegrity: "sha512-x",
       candidateTarball: new Uint8Array(0),
+      dependencyFiles: new Map(),
       candidateSha256: "abc",
       downloads: 1,
     },

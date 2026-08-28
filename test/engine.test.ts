@@ -39,6 +39,7 @@ function makeArtifacts(opts?: {
     candidatePackument: makePackument(opts),
     candidateIntegrity: "sha512-abc",
     candidateTarball: new Uint8Array(0),
+    dependencyFiles: new Map(),
     candidateSha256: "abc123",
     downloads: 1000,
   };
@@ -69,6 +70,7 @@ const config: VetterConfig = {
   score: { weights: {} },
   network: { timeoutMs: 30_000 },
   install: { pinOnInstall: false },
+  dependencies: { enabled: false, maxDepth: 2, maxPackages: 20 },
 };
 
 const candidate: Candidate = { name: "pkg", version: "2.0.0", scenario: "update" };
