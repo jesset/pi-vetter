@@ -35,6 +35,12 @@ export const RULES: Record<RuleId, RuleDef> = {
     severity: "high",
     description: "Candidate version has a known vulnerability advisory (GHSA/CVE via OSV)",
   },
+  "socket-flagged": {
+    kind: "ask",
+    severity: "high",
+    description:
+      "High-risk Socket.dev alert (gptMalware, installScripts, obfuscatedFile, typosquatting, ...)",
+  },
   "new-lifecycle-script": {
     kind: "ask",
     severity: "high",
@@ -135,6 +141,7 @@ const RULE_EVIDENCE_KEYS: Record<string, RuleId> = {
   "provenance:conflict": "provenance-conflict",
   "virustotal:detections": "vt-detections",
   "osv:vulnerability": "known-vulnerability",
+  "socket:alerts": "socket-flagged",
   "diff:new-script": "new-lifecycle-script",
   "metadata:maintainer-change": "maintainer-change",
   "osv:new-dependency-advisory": "new-dependency-flagged",

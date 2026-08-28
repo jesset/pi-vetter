@@ -10,6 +10,7 @@ import { diffScanner } from "./scanners/diff.ts";
 import { createMetadataScanner } from "./scanners/metadata.ts";
 import { createOsvScanner } from "./scanners/osv.ts";
 import { createProvenanceScanner } from "./scanners/provenance.ts";
+import { createSocketScanner } from "./scanners/socket.ts";
 import { staticScanner } from "./scanners/static-analysis.ts";
 import { createVirustotalScanner } from "./scanners/virustotal.ts";
 import { createPackageManager, listInstalledPackages } from "./settings.ts";
@@ -30,6 +31,17 @@ function assembleScanners(config: VetterConfig): SecurityScanner[] {
       createVirustotalScanner({
         apiKey: vt.apiKey,
         ...(vt.timeoutMs !== undefined ? { timeoutMs: vt.timeoutMs } : {}),
+      }),
+    );
+  }
+
+  const socket = config.scanners.socket;
+  if (socket?.enabled && socket.apiKey && socket.orgSlug) {
+    scanners.push(
+      createSocketScanner({
+        apiKey: socket.apiKey,
+        orgSlug: socket.orgSlug,
+        ...(socket.timeoutMs !== undefined ? { timeoutMs: socket.timeoutMs } : {}),
       }),
     );
   }

@@ -17,6 +17,7 @@ export type RuleId =
   | "provenance-conflict"
   | "vt-detections"
   | "known-vulnerability"
+  | "socket-flagged"
   | "new-lifecycle-script"
   | "maintainer-change"
   | "new-dependency-flagged"
@@ -126,6 +127,7 @@ export interface EvaluationReport {
 export interface ScannerConfig {
   enabled: boolean;
   apiKey?: string;
+  orgSlug?: string;
   timeoutMs?: number;
 }
 

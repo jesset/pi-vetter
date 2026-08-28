@@ -56,6 +56,13 @@ describe("deriveFindings", () => {
   it("ignores non-rule evidence keys", () => {
     expect(deriveFindings([ev("osv:clean", "pass"), ev("unknown:key", "fail")])).toEqual([]);
   });
+
+  it("maps socket alerts to the socket-flagged rule", () => {
+    const findings = deriveFindings([
+      { scanner: "socket", key: "socket:alerts", status: "fail", detail: "gptMalware" },
+    ]);
+    expect(findings[0]?.ruleId).toBe("socket-flagged");
+  });
 });
 
 describe("filterEnabled", () => {

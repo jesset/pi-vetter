@@ -6,7 +6,7 @@
     "static": { "enabled": true },
     "diff": { "enabled": true },
     "virustotal": { "enabled": false, "apiKey": "", "timeoutMs": 60000 },
-    "socket": { "enabled": false, "apiKey": "" }
+    "socket": { "enabled": false, "apiKey": "", "orgSlug": "" }
   },
   "rules": {
     "deny": {
