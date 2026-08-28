@@ -47,7 +47,12 @@ export function renderReport(report: EvaluationReport): string {
   return lines.join("\n");
 }
 
+const VERDICT_ORDER = { DENY: 0, ASK: 1, ALLOW: 2 } as const;
+
 export function renderReports(reports: EvaluationReport[]): string {
   if (reports.length === 0) return "No packages to evaluate.";
-  return reports.map(renderReport).join("\n\n---\n\n");
+  return [...reports]
+    .sort((a, b) => VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict])
+    .map(renderReport)
+    .join("\n\n---\n\n");
 }

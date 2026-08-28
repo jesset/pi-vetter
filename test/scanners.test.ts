@@ -222,6 +222,14 @@ describe("static scanner", () => {
     // .md is not scanned as code
     expect(result.evidences.find((e) => e.key === "static:prompt-injection")).toBeUndefined();
   });
+
+  it("reports eval-family hits as info (no rule mapped)", async () => {
+    const cand = files([["x.js", "eval('1');\n"]]);
+    const result = await staticScanner.scan(
+      ctx({ candidateFiles: cand, baselineFiles: new Map() }),
+    );
+    expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("info");
+  });
 });
 
 describe("diff scanner", () => {

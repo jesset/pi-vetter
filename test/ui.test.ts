@@ -1,7 +1,7 @@
 import type { Component } from "@earendil-works/pi-tui";
 import { describe, expect, it, vi } from "vitest";
 import type { EvaluationReport } from "../src/core/types.ts";
-import { renderReport } from "../src/ui/report.ts";
+import { renderReport, renderReports } from "../src/ui/report.ts";
 import {
   CheckboxComponent,
   type SelectionResult,
@@ -38,6 +38,18 @@ describe("renderReport", () => {
     const text = renderReport(r);
     expect(text).toContain("capped: incomplete evidence");
     expect(text).toContain("Lifecycle scripts");
+  });
+
+  it("orders multi-package reports DENY before ASK before ALLOW", () => {
+    const allow = report("ALLOW", "aaa");
+    const deny = report("DENY", "ddd");
+    const ask = report("ASK", "mmm");
+    const text = renderReports([allow, ask, deny]);
+    const denyAt = text.indexOf("### ddd");
+    const askAt = text.indexOf("### mmm");
+    const allowAt = text.indexOf("### aaa");
+    expect(denyAt).toBeLessThan(askAt);
+    expect(askAt).toBeLessThan(allowAt);
   });
 });
 

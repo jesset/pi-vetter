@@ -25,7 +25,6 @@ export const staticScanner: SecurityScanner = {
       ["static:credential-access", candidate.credentials, baseline?.credentials],
       ["static:obfuscation", candidate.obfuscation, baseline?.obfuscation],
       ["static:prompt-injection", candidate.promptInjection, baseline?.promptInjection],
-      ["static:eval", candidate.evalFamily, baseline?.evalFamily],
     ] as const;
 
     for (const [key, hits, baselineHits] of categories) {
@@ -40,6 +39,16 @@ export const staticScanner: SecurityScanner = {
           ? `${key.replace("static:", "")} markers found (${hits.length}): ${sample}`
           : `pre-existing ${key.replace("static:", "")} markers (${hits.length}), unchanged signal`,
         data: hits,
+      });
+    }
+
+    if (candidate.evalFamily.length > 0) {
+      evidences.push({
+        scanner: "static",
+        key: "static:eval",
+        status: "info",
+        detail: `eval-family markers present (${candidate.evalFamily.length}); informational, no verdict rule mapped`,
+        data: candidate.evalFamily,
       });
     }
 
