@@ -1,6 +1,6 @@
 {
   "name": "pi-vetter",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Security vetting for Pi extension packages — evidence-driven evaluation before install/update",
   "type": "module",
   "main": "src/index.ts",
@@ -50,5 +50,13 @@
   },
   "engines": {
     "node": ">=22.19.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jesset/pi-vetter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jesset/pi-vetter/issues"
+  },
+  "homepage": "https://github.com/jesset/pi-vetter#readme"
 }
