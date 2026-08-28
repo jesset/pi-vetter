@@ -99,6 +99,30 @@ describe("resolveTargets", () => {
       baseline: null,
     });
   });
+
+  it("reports resolving progress over non-pinned packages", async () => {
+    const d = deps([
+      { source: "npm:pkg", name: "pkg", version: "1.0.0", pinned: false, scope: "user" },
+      {
+        source: "npm:pinned-pkg@1.0.0",
+        name: "pinned-pkg",
+        version: "1.0.0",
+        pinned: true,
+        scope: "user",
+      },
+    ]);
+    const progress = {
+      startResolve: vi.fn(),
+      start: vi.fn(),
+      item: vi.fn(),
+      tick: vi.fn(),
+    };
+    const { targets } = await resolveTargets(d, [], progress);
+    expect(targets).toHaveLength(1);
+    expect(progress.startResolve).toHaveBeenCalledWith(1);
+    expect(progress.item).toHaveBeenCalledWith("pkg");
+    expect(progress.tick).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("installApproved", () => {

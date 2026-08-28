@@ -93,6 +93,7 @@ export async function buildArtifacts(
 export async function resolveTargets(
   deps: VetDeps,
   specs: string[],
+  progress?: ProgressPort,
 ): Promise<{
   targets: EvaluationTarget[];
   notes: string[];
@@ -105,60 +106,74 @@ export async function resolveTargets(
     for (const pkg of installed) {
       if (pkg.pinned) {
         notes.push(`- ${pkg.name}: pinned (${pkg.source}); skipped by design`);
-        continue;
       }
-      let packument: Awaited<ReturnType<VetDeps["fetchPackument"]>>;
-      try {
-        packument = await deps.fetchPackument(pkg.name);
-      } catch (err) {
-        notes.push(
-          `- ${pkg.name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
-        continue;
-      }
-      const latest = latestVersion(packument);
-      if (!latest || !pkg.version) {
-        notes.push(`- ${pkg.name}: could not determine latest/installed version`);
-        continue;
-      }
-      if (latest === pkg.version) continue;
-      targets.push({
-        candidate: { name: pkg.name, version: latest, scenario: "update" },
-        baseline: { name: pkg.name, version: pkg.version },
-      });
     }
+    const pending = installed.filter((p) => !p.pinned);
+    progress?.startResolve(pending.length);
+    await runPool(
+      pending,
+      async (pkg) => {
+        progress?.item(pkg.name);
+        try {
+          const packument = await deps.fetchPackument(pkg.name);
+          const latest = latestVersion(packument);
+          if (!latest || !pkg.version) {
+            notes.push(`- ${pkg.name}: could not determine latest/installed version`);
+          } else if (latest !== pkg.version) {
+            targets.push({
+              candidate: { name: pkg.name, version: latest, scenario: "update" },
+              baseline: { name: pkg.name, version: pkg.version },
+            });
+          }
+        } catch (err) {
+          notes.push(
+            `- ${pkg.name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        progress?.tick();
+      },
+      { concurrency: CONCURRENCY },
+    );
     return { targets, notes };
   }
 
-  for (const spec of specs) {
-    const body = spec.slice("npm:".length);
-    const at = body.lastIndexOf("@");
-    const name = at > 0 ? body.slice(0, at) : body;
-    const explicitVersion = at > 0 ? body.slice(at + 1) : undefined;
-    if (!name) {
-      notes.push(`- ${spec}: could not parse package name`);
-      continue;
-    }
-    let packument: Awaited<ReturnType<VetDeps["fetchPackument"]>>;
-    try {
-      packument = await deps.fetchPackument(name);
-    } catch (err) {
-      notes.push(
-        `- ${name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      continue;
-    }
-    const version = explicitVersion ?? latestVersion(packument);
-    if (!version || !packument.versions[version]) {
-      notes.push(`- ${name}: version ${version ?? "(latest)"} not found on registry`);
-      continue;
-    }
-    const already = installed.find((i) => i.name === name && i.version && i.version !== version);
-    targets.push({
-      candidate: { name, version, scenario: already ? "update" : "install" },
-      baseline: already ? { name, version: already.version as string } : null,
-    });
-  }
+  progress?.startResolve(specs.length);
+  await runPool(
+    specs,
+    async (spec) => {
+      const body = spec.slice("npm:".length);
+      const at = body.lastIndexOf("@");
+      const name = at > 0 ? body.slice(0, at) : body;
+      const explicitVersion = at > 0 ? body.slice(at + 1) : undefined;
+      if (!name) {
+        notes.push(`- ${spec}: could not parse package name`);
+        progress?.tick();
+        return;
+      }
+      progress?.item(name);
+      try {
+        const packument = await deps.fetchPackument(name);
+        const version = explicitVersion ?? latestVersion(packument);
+        if (!version || !packument.versions[version]) {
+          notes.push(`- ${name}: version ${version ?? "(latest)"} not found on registry`);
+        } else {
+          const already = installed.find(
+            (i) => i.name === name && i.version && i.version !== version,
+          );
+          targets.push({
+            candidate: { name, version, scenario: already ? "update" : "install" },
+            baseline: already ? { name, version: already.version as string } : null,
+          });
+        }
+      } catch (err) {
+        notes.push(
+          `- ${name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+      progress?.tick();
+    },
+    { concurrency: CONCURRENCY },
+  );
   return { targets, notes };
 }
 
@@ -166,6 +181,7 @@ const CONCURRENCY = 3;
 
 /** Duck-typed surface of ProgressTracker; injected so the command layer stays UI-free. */
 export interface ProgressPort {
+  startResolve(total: number): void;
   start(total: number): void;
   item(name: string): void;
   tick(): void;
@@ -178,7 +194,7 @@ export async function runVet(
 ): Promise<VetResult> {
   const parsed = parseArgs(rawArgs);
   if ("error" in parsed) throw new Error(parsed.error);
-  const { targets, notes } = await resolveTargets(deps, parsed.specs);
+  const { targets, notes } = await resolveTargets(deps, parsed.specs, progress);
   progress?.start(targets.length);
 
   const engineDeps: EngineDeps = {

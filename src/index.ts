@@ -85,6 +85,10 @@ export default function (pi: ExtensionAPI): void {
       if (isTui) ctx.ui.setWidget("pi-vetter-progress", tracker.lines());
     };
     return {
+      startResolve: (total: number) => {
+        tracker.startResolve(total);
+        render();
+      },
       start: (total: number) => {
         tracker.start(total);
         render();
