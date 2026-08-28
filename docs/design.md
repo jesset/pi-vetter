@@ -233,7 +233,14 @@ src/
 - `gated-installer.test.ts`：integrity 不匹配跳过、pi.exec 失败中断（mock）
 - 真实链路 smoke（验收用例 1）：对真实已装扩展跑 `/vet` 全流程
 
-## 8. Out of scope（明确不做，未来可能重开）
+## 8. Implementation notes（MVP 落地时与 §2/§5 的偏差）
+
+- **Artifacts 为内存文件映射**（`candidateFiles: Map<path, Uint8Array>`），不做磁盘解包——未受信 tarball 的解压存在路径穿越风险且无必要，static/diff 均在内存完成；tar 解析用 `tar-stream`，下载字节先经 `dist.integrity` sha512 校验。
+- **provenance 为方向性验证**（MVP）：不执行完整 sigstore 验签（`@sigstore/verify` 需外部 TrustedRoot，包内不带），仅做"attestation 声称的源 vs packument.repository 矛盾检测"（fail 方向有效）；一致时给 info `provenance:declared` 而非 pass `verified`，伪造的 attestation 骗不到加分。完整验签留 Phase 2。
+- **新增规则 `known-vulnerability`**（ask/high）：候选版本自身命中 GHSA/CVE 通告时触发（§5 清单在实现时补齐了该缺口）。
+- **maintainer-change 依赖本地快照**（`~/.pi/agent/pi-vetter/maintainers.json`）：npm registry 不提供维护者历史，首次 vet 记录、后续比对；无快照时仅 info。
+
+## 9. Out of scope（明确不做，未来可能重开）
 
 - **拦截 agent 自发起的 `pi update --extensions`**（`tool_call` 事件监听 agent 通过 bash 执行更新命令的企图，提示改走 `/vet`）：防 prompt-injection 驱动的依赖更新。决策：不进 MVP，大概率不做；若未来威胁模型变化可重开。来源：`docs/research-safe-update-gate.md` 建议。
 - 本地安装物与 registry 基线的偏差检测（生态已有指纹方案覆盖）。

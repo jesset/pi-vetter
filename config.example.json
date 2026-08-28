@@ -1,0 +1,34 @@
+{
+  "scanners": {
+    "metadata": { "enabled": true },
+    "osv": { "enabled": true, "timeoutMs": 10000 },
+    "provenance": { "enabled": true, "timeoutMs": 10000 },
+    "static": { "enabled": true },
+    "diff": { "enabled": true },
+    "virustotal": { "enabled": false, "apiKey": "", "timeoutMs": 60000 },
+    "socket": { "enabled": false, "apiKey": "" }
+  },
+  "rules": {
+    "deny": {
+      "malicious-package": true,
+      "provenance-conflict": true,
+      "vt-detections": true
+    },
+    "ask": {
+      "known-vulnerability": true,
+      "new-lifecycle-script": true,
+      "maintainer-change": true,
+      "new-dependency-flagged": true,
+      "new-network-endpoint": true,
+      "new-child-process": true,
+      "credential-access": true,
+      "obfuscation": true,
+      "prompt-injection-marker": true,
+      "young-package": true,
+      "rapid-release": true,
+      "deprecated-candidate": true
+    }
+  },
+  "cache": { "enabled": true, "ttlHours": 24 },
+  "score": { "weights": {} }
+}
