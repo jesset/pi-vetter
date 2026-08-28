@@ -72,6 +72,7 @@ Scan results are cached per `scanner + pkg@version` under `~/.pi/agent/pi-vetter
 
 - Approving an install still executes the package's install scripts — Pi does not install with `--ignore-scripts`; pi-vetter warns but cannot prevent this.
 - pi-vetter scans the package itself, not every transitive dependency tarball (deep scanning is Phase 2).
+- Bootstrap supply chain: pi-vetter's own runtime dependencies (`@sigstore/bundle`, `@sigstore/verify`, `tar-stream`) are npm packages too and carry the same theoretical poisoning risk as anything it vets — the evaluator cannot lift itself above its own supply chain. Audit its lockfile like any other tool you grant full permissions.
 - Non-npm sources (git/local) are out of scope for MVP.
 
 ## Development

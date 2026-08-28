@@ -79,9 +79,9 @@ describe("virustotal scanner", () => {
     expect(result.status).toBe("ok");
     expect(result.evidences[0]).toMatchObject({ key: "virustotal:clean", status: "pass" });
     expect(fetchImpl).toHaveBeenCalledTimes(4);
-    const uploadCall = fetchImpl.mock.calls[1];
+    const uploadCall = fetchImpl.mock.calls[1] as unknown[];
     expect(uploadCall?.[0]).toBe("https://www.virustotal.com/api/v3/files");
-    expect((uploadCall?.[1] as { method: string }).method).toBe("POST");
+    expect((uploadCall[1] as { method: string }).method).toBe("POST");
   });
 
   it("bounds the upload+poll total duration to a deadline", async () => {

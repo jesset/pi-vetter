@@ -85,7 +85,7 @@ export function createOsvScanner(timeoutMs = 10_000): SecurityScanner {
           });
         }
 
-        let flaggedDeps = 0;
+        let _flaggedDeps = 0;
         for (const [i, vulns] of depVulns.entries()) {
           if (vulns.length === 0) continue;
           const dep = depEntries[i];
@@ -102,7 +102,7 @@ export function createOsvScanner(timeoutMs = 10_000): SecurityScanner {
                 : `new dependency ${dep.name} has advisories: ${vulns.map((v) => v.id).join(", ")}`,
             data: { dependency: dep, vulns },
           });
-          flaggedDeps++;
+          _flaggedDeps++;
         }
 
         if (evidences.length === 0) {

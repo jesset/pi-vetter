@@ -31,5 +31,5 @@ export async function fetchDownloads(name: string, signal?: AbortSignal): Promis
 }
 
 export function latestVersion(packument: Packument): string | undefined {
-  return packument["dist-tags"]?.["latest"];
+  return packument["dist-tags"]?.latest;
 }

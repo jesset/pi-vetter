@@ -13,9 +13,9 @@ import type {
   SecurityScanner,
   VetterConfig,
 } from "../core/types.ts";
-import { fetchDownloads, fetchPackument, latestVersion } from "../npm/registry.ts";
+import { fetchDownloads, latestVersion } from "../npm/registry.ts";
 import { downloadTarball, parseTarball, verifyIntegrity } from "../npm/tarball.ts";
-import { type InstalledPackage, listInstalledPackages } from "../settings.ts";
+import type { InstalledPackage } from "../settings.ts";
 
 export type ParsedArgs = { specs: string[] } | { error: string };
 

@@ -2,12 +2,7 @@ import type { Component } from "@earendil-works/pi-tui";
 import { describe, expect, it, vi } from "vitest";
 import type { EvaluationReport } from "../src/core/types.ts";
 import { renderReport, renderReports, summaryLine } from "../src/ui/report.ts";
-import {
-  CheckboxComponent,
-  type SelectionResult,
-  selectForInstall,
-  type UiPort,
-} from "../src/ui/select.ts";
+import { CheckboxComponent, selectForInstall, type UiPort } from "../src/ui/select.ts";
 
 function report(verdict: EvaluationReport["verdict"], name = "pkg"): EvaluationReport {
   return {

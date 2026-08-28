@@ -53,8 +53,10 @@ describe("provenance verification", () => {
     };
     // Tamper with the payload of the publicly-verifiable bundle (index 1):
     // the bytes no longer match the DSSE signature.
-    tampered.attestations[1]!.bundle.dsseEnvelope = {
-      ...tampered.attestations[1]!.bundle.dsseEnvelope,
+    const target = tampered.attestations[1];
+    if (!target) throw new Error("fixture missing bundle");
+    target.bundle.dsseEnvelope = {
+      ...target.bundle.dsseEnvelope,
       payload: Buffer.from("tampered").toString("base64"),
     };
     const scanner = createProvenanceScanner({

@@ -72,6 +72,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 
 - 批准安装仍会执行该包的 install 脚本——Pi 安装不带 `--ignore-scripts`；pi-vetter 会警告但无法阻止
 - pi-vetter 扫描包本身，不扫描全部传递依赖 tarball（深度扫描为 Phase 2）
+- 自举供应链：pi-vetter 自身的运行时依赖（`@sigstore/bundle`、`@sigstore/verify`、`tar-stream`）同样是 npm 包，与它所评估的一切存在同样的理论投毒风险——评估器无法把自己举到自身供应链之上。请像审计任何拥有完整权限的工具一样审计它的 lockfile
 - 非 npm 源（git/本地路径）不在 MVP 范围内
 
 ## 开发

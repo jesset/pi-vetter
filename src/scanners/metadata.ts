@@ -17,7 +17,7 @@ export function createMetadataScanner(
       const packument = artifacts.candidatePackument;
       const evidences: Evidence[] = [];
 
-      const created = packument.time?.["created"] ? Date.parse(packument.time["created"]) : NaN;
+      const created = packument.time?.created ? Date.parse(packument.time.created) : NaN;
       const ageDays = Number.isFinite(created) ? (now - created) / 86_400_000 : null;
       if (ageDays !== null && ageDays < 7) {
         evidences.push({

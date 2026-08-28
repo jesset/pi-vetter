@@ -6,7 +6,6 @@ import type {
   Candidate,
   EvaluationReport,
   Evidence,
-  Finding,
   ScannerContext,
   ScanResult,
   SecurityScanner,
@@ -50,7 +49,7 @@ function cacheKey(candidate: Candidate): string {
 }
 
 function ageDays(packument: Artifacts["candidatePackument"], now = Date.now()): number | null {
-  const created = packument.time?.["created"];
+  const created = packument.time?.created;
   if (!created) return null;
   const ms = now - Date.parse(created);
   return Number.isFinite(ms) && ms >= 0 ? Math.floor(ms / 86_400_000) : null;
