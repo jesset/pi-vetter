@@ -14,6 +14,7 @@ import { createSocketScanner } from "./scanners/socket.ts";
 import { staticScanner } from "./scanners/static-analysis.ts";
 import { createVirustotalScanner } from "./scanners/virustotal.ts";
 import { createPackageManager, listInstalledPackages } from "./settings.ts";
+import { reportEntryRenderer } from "./ui/entry.ts";
 import { ProgressTracker } from "./ui/progress.ts";
 import { renderReport } from "./ui/report.ts";
 
@@ -67,8 +68,14 @@ export default function (pi: ExtensionAPI): void {
     fetchPackument,
   };
 
-  const send = (content: string) =>
-    pi.sendMessage({ customType: "pi-vetter", content, display: true });
+  pi.registerEntryRenderer("pi-vetter-report", reportEntryRenderer);
+
+  // Transcript output only: custom entries do NOT participate in LLM context
+  // (sendMessage does — and queues through the agent pipeline, so it is
+  // neither instant nor free of token pollution).
+  const send = (content: string) => {
+    pi.appendEntry("pi-vetter-report", { markdown: content });
+  };
 
   const makeProgress = (ctx: ExtensionCommandContext) => {
     const tracker = new ProgressTracker("pi-vetter: vetting");
@@ -98,7 +105,7 @@ export default function (pi: ExtensionAPI): void {
   pi.registerCommand("vet", {
     description: "Evaluate pending extension updates or a specific package (read-only)",
     handler: async (args: string, ctx) => {
-      send("pi-vetter: /vet started…");
+      ctx.ui.notify("pi-vetter: /vet started", "info");
       const progress = makeProgress(ctx);
       const { reports, notes } = await runVet(
         vetDeps,
@@ -115,7 +122,7 @@ export default function (pi: ExtensionAPI): void {
   pi.registerCommand("vet-install", {
     description: "Evaluate, then interactively install approved packages",
     handler: async (args: string, ctx) => {
-      send("pi-vetter: /vet-install started…");
+      ctx.ui.notify("pi-vetter: /vet-install started", "info");
       const progress = makeProgress(ctx);
       const content = await runVetInstall(
         { ...vetDeps, exec: (cmd, argv, opts) => pi.exec(cmd, argv, opts) },
