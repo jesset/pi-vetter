@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-28
+
+### Fixed
+
+- Deep-scan review fixes (#7 follow-up): dependency versions now resolve to the highest published version inside the declared range instead of always `latest` (scanned tarball ≈ what npm would install; fallback to `latest` disclosed in READMEs); dependency tarballs are integrity-verified against `dist.integrity`; fetch/verify failures are counted and disclosed in the evidence instead of silently shrinking the sample; dependency packuments are no longer fetched twice
+
 ## [0.2.0] - 2026-08-28
 
 ### Changed
 
-- Deep dependency scanning (#7): the transitive dependency closure (BFS from registry metadata, bounded by depth 2 / 20 packages by default, configurable and switchable via `dependencies.*`) is downloaded in-memory, integrity-verified, and statically scanned; each dependency resolves to the highest published version inside its declared range (falling back to `latest`); hits surface as informational evidence attributed per dependency (`undici@8.10.0: obfuscation x2`) without affecting the verdict in this phase, and fetch/verify failures are counted and disclosed alongside the evidence instead of being silently swallowed
+- Deep dependency scanning (#7): the transitive dependency closure (BFS from registry metadata, bounded by depth 2 / 20 packages by default, configurable and switchable via `dependencies.*`) is downloaded in-memory and statically scanned; hits surface as informational evidence attributed per dependency (`undici@8.10.0: obfuscation x2`) without affecting the verdict in this phase
 - Install-scenario false-positive reduction (#12): with no baseline to diff against, credential-access and obfuscation static hits stay informational (a package's legitimate nature, e.g. API-key readers) while prompt-injection remains a hard signal; update-scenario behaviour unchanged
 - Responsibility rebalance (#16): pinned packages are now evaluated on every `/vet` (marked "baseline is pinned" — the previous behaviour skipped them entirely); `install.pinOnInstall` defaults to **false**, so approved installs no longer silently rewrite the settings entry to a pinned spec — the install result shows the exact pin command for users who want it. ADR-0003 revised accordingly
 - `/vet` and `/vet-install` now emit a done notification with verdict counts (`N vetted: X ALLOW, Y ASK, Z DENY`) and an aborted notification with the failure reason; reports are batched into one verdict-ordered summary at the end instead of streamed per package (the progress widget covers process visibility)
