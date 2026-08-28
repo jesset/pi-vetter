@@ -62,6 +62,16 @@ _Avoid_: downgrade、block
 纯辅助展示的聚合数值，不参与 Verdict 判定。
 _Avoid_: trust score、security score
 
+### 呈现
+
+**Progress（进度）**:
+Vet 过程中的临时状态呈现，只回答"进行到哪了"，不承载 Verdict；命令结束（含中止）即清除，不留任何记录。
+_Avoid_: status bar、spinner、进度条
+
+**Report（报告）**:
+Vet 全部完成后一次性输出的持久化逐包结论记录，按 Verdict 严重度排序，是 Verdict 与 Evidence 的唯一呈现载体。
+_Avoid_: 逐包流式输出、scan output
+
 ### 执行
 
 **Approval（批准）**:
