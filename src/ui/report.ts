@@ -49,6 +49,13 @@ export function renderReport(report: EvaluationReport): string {
 
 const VERDICT_ORDER = { DENY: 0, ASK: 1, ALLOW: 2 } as const;
 
+/** One-line done notification with verdict counts. */
+export function summaryLine(command: string, reports: EvaluationReport[]): string {
+  const counts = { ALLOW: 0, ASK: 0, DENY: 0 };
+  for (const r of reports) counts[r.verdict] += 1;
+  return `pi-vetter: ${command} done — ${reports.length} vetted: ${counts.ALLOW} ALLOW, ${counts.ASK} ASK, ${counts.DENY} DENY`;
+}
+
 export function renderReports(reports: EvaluationReport[]): string {
   if (reports.length === 0) return "No packages to evaluate.";
   return [...reports]

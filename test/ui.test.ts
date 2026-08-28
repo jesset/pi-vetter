@@ -1,7 +1,7 @@
 import type { Component } from "@earendil-works/pi-tui";
 import { describe, expect, it, vi } from "vitest";
 import type { EvaluationReport } from "../src/core/types.ts";
-import { renderReport, renderReports } from "../src/ui/report.ts";
+import { renderReport, renderReports, summaryLine } from "../src/ui/report.ts";
 import {
   CheckboxComponent,
   type SelectionResult,
@@ -50,6 +50,22 @@ describe("renderReport", () => {
     const allowAt = text.indexOf("### aaa");
     expect(denyAt).toBeLessThan(askAt);
     expect(askAt).toBeLessThan(allowAt);
+  });
+
+  it("summarises verdict counts for the done notification", () => {
+    const line = summaryLine("/vet", [
+      report("ALLOW", "a"),
+      report("ALLOW", "b"),
+      report("ASK", "c"),
+      report("DENY", "d"),
+    ]);
+    expect(line).toBe("pi-vetter: /vet done — 4 vetted: 2 ALLOW, 1 ASK, 1 DENY");
+  });
+
+  it("summarises an empty run", () => {
+    expect(summaryLine("/vet-install", [])).toBe(
+      "pi-vetter: /vet-install done — 0 vetted: 0 ALLOW, 0 ASK, 0 DENY",
+    );
   });
 });
 

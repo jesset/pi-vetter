@@ -16,7 +16,7 @@ import { createVirustotalScanner } from "./scanners/virustotal.ts";
 import { createPackageManager, listInstalledPackages } from "./settings.ts";
 import { reportEntryRenderer } from "./ui/entry.ts";
 import { ProgressTracker } from "./ui/progress.ts";
-import { renderReport } from "./ui/report.ts";
+import { renderReports, summaryLine } from "./ui/report.ts";
 
 function assembleScanners(config: VetterConfig): SecurityScanner[] {
   const scanners: SecurityScanner[] = [
@@ -107,15 +107,24 @@ export default function (pi: ExtensionAPI): void {
     handler: async (args: string, ctx) => {
       ctx.ui.notify("pi-vetter: /vet started", "info");
       const progress = makeProgress(ctx);
-      const { reports, notes } = await runVet(
-        vetDeps,
-        args,
-        (report) => send(renderReport(report)),
-        progress,
-      );
-      progress.finish();
-      if (reports.length === 0 && notes.length === 0) send("No packages to evaluate.");
-      else if (notes.length > 0) send(`**Notes**\n${notes.join("\n")}`);
+      try {
+        const { reports, notes } = await runVet(vetDeps, args, undefined, progress);
+        progress.finish();
+        ctx.ui.notify(summaryLine("/vet", reports), "info");
+        const content = [
+          renderReports(reports),
+          notes.length > 0 ? `**Notes**\n${notes.join("\n")}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        send(content || "No packages to evaluate.");
+      } catch (err) {
+        progress.finish();
+        ctx.ui.notify(
+          `pi-vetter: /vet aborted — ${err instanceof Error ? err.message : String(err)}`,
+          "error",
+        );
+      }
     },
   });
 
@@ -124,15 +133,23 @@ export default function (pi: ExtensionAPI): void {
     handler: async (args: string, ctx) => {
       ctx.ui.notify("pi-vetter: /vet-install started", "info");
       const progress = makeProgress(ctx);
-      const content = await runVetInstall(
-        { ...vetDeps, exec: (cmd, argv, opts) => pi.exec(cmd, argv, opts) },
-        args,
-        ctx,
-        (report) => send(renderReport(report)),
-        progress,
-      );
-      progress.finish();
-      if (content) send(content);
+      try {
+        const result = await runVetInstall(
+          { ...vetDeps, exec: (cmd, argv, opts) => pi.exec(cmd, argv, opts) },
+          args,
+          ctx,
+          progress,
+        );
+        progress.finish();
+        ctx.ui.notify(summaryLine("/vet-install", result.reports), "info");
+        if (result.content) send(result.content);
+      } catch (err) {
+        progress.finish();
+        ctx.ui.notify(
+          `pi-vetter: /vet-install aborted — ${err instanceof Error ? err.message : String(err)}`,
+          "error",
+        );
+      }
     },
   });
 }
