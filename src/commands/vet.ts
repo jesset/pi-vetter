@@ -90,6 +90,10 @@ export async function buildArtifacts(
   };
 }
 
+function lookupFailedNote(name: string, err: unknown): string {
+  return `- ${name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`;
+}
+
 export async function resolveTargets(
   deps: VetDeps,
   specs: string[],
@@ -120,9 +124,7 @@ export async function resolveTargets(
             });
           }
         } catch (err) {
-          notes.push(
-            `- ${pkg.name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
+          notes.push(lookupFailedNote(pkg.name, err));
         }
         progress?.tick();
       },
@@ -156,13 +158,13 @@ export async function resolveTargets(
           );
           targets.push({
             candidate: { name, version, scenario: already ? "update" : "install" },
-            baseline: already ? { name, version: already.version as string } : null,
+            baseline: already
+              ? { name, version: already.version as string, pinned: already.pinned }
+              : null,
           });
         }
       } catch (err) {
-        notes.push(
-          `- ${name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        notes.push(lookupFailedNote(name, err));
       }
       progress?.tick();
     },

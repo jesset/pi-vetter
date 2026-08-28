@@ -42,7 +42,7 @@ export const staticScanner: SecurityScanner = {
         status: fail ? "fail" : "info",
         detail: fail
           ? `${key.replace("static:", "")} markers found (${hits.length}): ${sample}`
-          : installDowngraded && isNew
+          : installDowngraded
             ? `${key.replace("static:", "")} markers present (${hits.length}); informational without a baseline to compare against`
             : `pre-existing ${key.replace("static:", "")} markers (${hits.length}), unchanged signal`,
         data: hits,

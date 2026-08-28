@@ -135,12 +135,15 @@ export default function (pi: ExtensionAPI): void {
 
   // #16: by default, restore the unpinned spec after installing so the
   // evaluator never decides a package's long-term update policy silently.
+  // Best-effort: if the re-add step fails after removal, the settings entry
+  // is missing (pi update then ignores the package) — the installed version
+  // itself is unaffected either way.
   const unpin = (name: string, version: string) => {
     try {
       pm.removeSourceFromSettings(installSpec(name, version));
       pm.addSourceToSettings(`npm:${name}`);
     } catch {
-      // settings restore is best-effort; the installed version is unaffected
+      // see note above
     }
   };
 
