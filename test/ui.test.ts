@@ -1,3 +1,4 @@
+import type { Component } from "@earendil-works/pi-tui";
 import { describe, expect, it, vi } from "vitest";
 import type { EvaluationReport } from "../src/core/types.ts";
 import { renderReport } from "../src/ui/report.ts";
@@ -116,13 +117,20 @@ describe("selectForInstall", () => {
     const ui: UiPort = {
       mode: "tui",
       confirm: vi.fn(),
-      custom: <T>(factory: Parameters<UiPort["custom"]>[0]) => {
-        let captured: SelectionResult | undefined;
+      custom: async <T>(
+        factory: (
+          tui: unknown,
+          theme: unknown,
+          keybindings: unknown,
+          done: (r: T) => void,
+        ) => Component,
+      ) => {
+        let captured: T | undefined;
         const comp = factory({}, {}, {}, (r: T) => {
-          captured = r as unknown as SelectionResult;
+          captured = r;
         });
-        comp.handleInput("q");
-        return Promise.resolve(captured as unknown as T);
+        comp.handleInput?.("q");
+        return captured as T;
       },
     };
     const result = await selectForInstall(ui, [report("ALLOW", "a")]);
