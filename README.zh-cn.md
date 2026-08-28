@@ -11,7 +11,7 @@ Pi 以完整用户权限安装扩展包并执行其 `postinstall` 脚本，而�
 ## 安装
 
 ```bash
-pi install git:github.com/jesset/pi-vetter
+pi install npm:pi-vetter
 ```
 
 （需要 Node ≥ 22.19.0；无需任何 API key——默认扫描器全部免费）

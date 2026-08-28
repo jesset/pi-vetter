@@ -11,7 +11,7 @@ Pi installs extension packages with full user permissions and runs their `postin
 ## Install
 
 ```bash
-pi install git:github.com/jesset/pi-vetter
+pi install npm:pi-vetter
 ```
 
 (requires Node ≥ 22.19.0; no API keys needed — all default scanners are free)
