@@ -72,6 +72,7 @@ describe("filterEnabled", () => {
     cache: { enabled: true, ttlHours: 24 },
     score: { weights: {} },
     network: { timeoutMs: 30_000 },
+    install: { pinOnInstall: false },
   };
 
   it("drops findings whose rule is disabled", () => {

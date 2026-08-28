@@ -4,7 +4,7 @@
 
 Pi 扩展包的安全评估器——在安装或更新之前做证据驱动的门禁。
 
-Pi 以完整用户权限安装扩展包并执行其 `postinstall` 脚本，而内建更新提示只告诉你"有更新"。pi-vetter 对每个候选版本做多路证据评估，给出 **ALLOW / ASK / DENY** 判定与完整证据清单，由你决定装什么——然后只安装你批准的版本，并以精确钉定（pinned spec）使其免于被 `pi update --extensions` 再次触碰。
+Pi 以完整用户权限安装扩展包并执行其 `postinstall` 脚本，而内建更新提示只告诉你"有更新"。pi-vetter 对每个候选版本做多路证据评估，给出 **ALLOW / ASK / DENY** 判定与完整证据清单，由你决定装什么——然后只安装你批准的版本，更新策略始终掌握在你手里。
 
 > pi-vetter 只能证明"未发现风险信号"，永远无法证明一个包是安全的。请阅读证据，而不只看判定。
 
@@ -23,7 +23,7 @@ pi install git:github.com/jesset/pi-vetter
 | `/vet` | 只读评估。不带参数 = 检查全部已装扩展的可用更新；也可指定：`/vet npm:foo npm:bar@1.2.3` |
 | `/vet-install` | 同样评估，然后交互多选（TUI 复选框；非 TUI 模式退化为分组确认），只安装你批准的包 |
 
-批准的包通过 `pi install npm:<pkg>@<version>` 安装——精确版本 spec 意味着 Pi 的更新检查从此跳过它（ADR-0003）。每次安装前都会重新比对扫描时记录的 registry 完整性值，不匹配则中止该包安装（TOCTOU 防护）。
+批准的包通过 `pi install npm:<pkg>@<version>` 安装——装的就是评估过的那个版本，且每次安装前重新比对 registry 完整性（TOCTOU 防护）。默认在安装成功后把 settings 条目还原为非 pin spec（ADR-0003 修订版）："让这个包从此退出更新通道"是你的决定而非评估器的副作用——安装结果会给出精确的 pin 命令供你自行执行（`install.pinOnInstall: true` 恢复旧的总是 pin 行为）。pinned 包在每次 `/vet` 中照常评估并在报告中标注。
 
 ### 判定模型
 
@@ -61,7 +61,8 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
   "rules": { "deny": {}, "ask": { "young-package": true } },
   "cache": { "enabled": true, "ttlHours": 24 },
   "score": { "weights": {} },
-  "network": { "timeoutMs": 30000 }
+  "network": { "timeoutMs": 30000 },
+  "install": { "pinOnInstall": false }
 }
 ```
 

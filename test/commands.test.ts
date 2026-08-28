@@ -50,6 +50,7 @@ describe("resolveTargets", () => {
         cache: { enabled: false, ttlHours: 24 },
         score: { weights: {} },
         network: { timeoutMs: 30_000 },
+        install: { pinOnInstall: false },
       },
       cache: { get: () => Promise.resolve(null), set: () => Promise.resolve() },
       scanners: [],
@@ -75,10 +76,29 @@ describe("resolveTargets", () => {
     expect(targets).toEqual([
       {
         candidate: { name: "pkg", version: "2.0.0", scenario: "update" },
-        baseline: { name: "pkg", version: "1.0.0" },
+        baseline: { name: "pkg", version: "1.0.0", pinned: false },
       },
     ]);
-    expect(notes[0]).toContain("pinned-pkg");
+    expect(notes).toEqual([]);
+  });
+
+  it("keeps evaluating pinned packages with available updates (blind-spot fix)", async () => {
+    const d = deps([
+      {
+        source: "npm:pkg@1.0.0",
+        name: "pkg",
+        version: "1.0.0",
+        pinned: true,
+        scope: "user",
+      },
+    ]);
+    const { targets } = await resolveTargets(d, []);
+    expect(targets).toEqual([
+      {
+        candidate: { name: "pkg", version: "2.0.0", scenario: "update" },
+        baseline: { name: "pkg", version: "1.0.0", pinned: true },
+      },
+    ]);
   });
 
   it("resolves explicit specs to install or update scenario", async () => {
@@ -100,7 +120,7 @@ describe("resolveTargets", () => {
     });
   });
 
-  it("reports resolving progress over non-pinned packages", async () => {
+  it("reports resolving progress over all installed packages", async () => {
     const d = deps([
       { source: "npm:pkg", name: "pkg", version: "1.0.0", pinned: false, scope: "user" },
       {
@@ -119,9 +139,8 @@ describe("resolveTargets", () => {
     };
     const { targets } = await resolveTargets(d, [], progress);
     expect(targets).toHaveLength(1);
-    expect(progress.startResolve).toHaveBeenCalledWith(1);
-    expect(progress.item).toHaveBeenCalledWith("pkg");
-    expect(progress.tick).toHaveBeenCalledTimes(1);
+    expect(progress.startResolve).toHaveBeenCalledWith(2);
+    expect(progress.tick).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -164,10 +183,40 @@ describe("installApproved", () => {
       ),
     );
     const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "", code: 0 }));
-    const outcomes = await installApproved(exec as never, [report("pkg", "2.0.0", "sha512-good")]);
+    const unpin = vi.fn();
+    const outcomes = await installApproved(exec as never, [report("pkg", "2.0.0", "sha512-good")], {
+      unpin,
+    });
+    vi.unstubAllGlobals();
+    expect(outcomes).toEqual([
+      {
+        name: "pkg",
+        version: "2.0.0",
+        status: "installed",
+        message: "to pin: pi install npm:pkg@2.0.0",
+      },
+    ]);
+    expect(exec).toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+    expect(unpin).toHaveBeenCalledWith("pkg", "2.0.0");
+  });
+
+  it("keeps the pinned spec when pinOnInstall is enabled", async () => {
+    const fetchPackument = mockRegistry({ pkg: "sha512-good" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) =>
+        fetchPackument("pkg").then((p) => new Response(JSON.stringify(p), init)),
+      ),
+    );
+    const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "", code: 0 }));
+    const unpin = vi.fn();
+    const outcomes = await installApproved(exec as never, [report("pkg", "2.0.0", "sha512-good")], {
+      unpin,
+      pinOnInstall: true,
+    });
     vi.unstubAllGlobals();
     expect(outcomes).toEqual([{ name: "pkg", version: "2.0.0", status: "installed" }]);
-    expect(exec).toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+    expect(unpin).not.toHaveBeenCalled();
   });
 
   it("skips on integrity mismatch (TOCTOU guard)", async () => {

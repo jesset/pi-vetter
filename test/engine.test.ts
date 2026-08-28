@@ -68,6 +68,7 @@ const config: VetterConfig = {
   cache: { enabled: false, ttlHours: 24 },
   score: { weights: {} },
   network: { timeoutMs: 30_000 },
+  install: { pinOnInstall: false },
 };
 
 const candidate: Candidate = { name: "pkg", version: "2.0.0", scenario: "update" };

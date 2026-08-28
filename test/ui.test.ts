@@ -52,6 +52,12 @@ describe("renderReport", () => {
     expect(askAt).toBeLessThan(allowAt);
   });
 
+  it("marks a pinned baseline in the headline", () => {
+    const r = report("ALLOW", "pkg");
+    r.baseline = { name: "pkg", version: "1.0.0", pinned: true };
+    expect(renderReport(r)).toContain("1.0.0 → 2.0.0 (baseline is pinned)");
+  });
+
   it("summarises verdict counts for the done notification", () => {
     const line = summaryLine("/vet", [
       report("ALLOW", "a"),

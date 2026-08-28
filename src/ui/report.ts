@@ -13,7 +13,8 @@ function headline(report: EvaluationReport): string {
   if (report.candidate.scenario === "install" || !report.baseline) {
     return `install ${report.candidate.name}@${report.candidate.version}`;
   }
-  return `${report.candidate.name} ${report.baseline.version} → ${report.candidate.version}`;
+  const pinnedNote = report.baseline.pinned ? " (baseline is pinned)" : "";
+  return `${report.candidate.name} ${report.baseline.version} → ${report.candidate.version}${pinnedNote}`;
 }
 
 export function renderReport(report: EvaluationReport): string {

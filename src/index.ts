@@ -5,6 +5,7 @@ import { runVet } from "./commands/vet.ts";
 import { runVetInstall } from "./commands/vet-install.ts";
 import { createMaintainerSnapshotStore, dataDir, loadConfig } from "./config.ts";
 import type { SecurityScanner, VetterConfig } from "./core/types.ts";
+import { installSpec } from "./install/gated-installer.ts";
 import { fetchPackument } from "./npm/registry.ts";
 import { diffScanner } from "./scanners/diff.ts";
 import { createMetadataScanner } from "./scanners/metadata.ts";
@@ -79,7 +80,7 @@ export default function (pi: ExtensionAPI): void {
   };
 
   const makeProgress = (ctx: ExtensionCommandContext) => {
-    const tracker = new ProgressTracker("pi-vetter: vetting");
+    const tracker = new ProgressTracker("pi-vetter");
     const isTui = ctx.mode === "tui";
     const render = () => {
       if (isTui) ctx.ui.setWidget("pi-vetter-progress", tracker.lines());
@@ -132,6 +133,17 @@ export default function (pi: ExtensionAPI): void {
     },
   });
 
+  // #16: by default, restore the unpinned spec after installing so the
+  // evaluator never decides a package's long-term update policy silently.
+  const unpin = (name: string, version: string) => {
+    try {
+      pm.removeSourceFromSettings(installSpec(name, version));
+      pm.addSourceToSettings(`npm:${name}`);
+    } catch {
+      // settings restore is best-effort; the installed version is unaffected
+    }
+  };
+
   pi.registerCommand("vet-install", {
     description: "Evaluate, then interactively install approved packages",
     handler: async (args: string, ctx) => {
@@ -139,7 +151,12 @@ export default function (pi: ExtensionAPI): void {
       const progress = makeProgress(ctx);
       try {
         const result = await runVetInstall(
-          { ...vetDeps, exec: (cmd, argv, opts) => pi.exec(cmd, argv, opts) },
+          {
+            ...vetDeps,
+            exec: (cmd, argv, opts) => pi.exec(cmd, argv, opts),
+            pinOnInstall: config.install.pinOnInstall,
+            unpin,
+          },
           args,
           ctx,
           progress,

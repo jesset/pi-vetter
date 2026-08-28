@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Responsibility rebalance (#16): pinned packages are now evaluated on every `/vet` (marked "baseline is pinned" — the previous behaviour skipped them entirely); `install.pinOnInstall` defaults to **false**, so approved installs no longer silently rewrite the settings entry to a pinned spec — the install result shows the exact pin command for users who want it. ADR-0003 revised accordingly
+
+### Changed
+
 - `/vet` and `/vet-install` now emit a done notification with verdict counts (`N vetted: X ALLOW, Y ASK, Z DENY`) and an aborted notification with the failure reason; reports are batched into one verdict-ordered summary at the end instead of streamed per package (the progress widget covers process visibility)
 
 ### Fixed

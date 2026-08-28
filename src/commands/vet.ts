@@ -103,15 +103,9 @@ export async function resolveTargets(
   const installed = deps.listInstalled();
 
   if (specs.length === 0) {
-    for (const pkg of installed) {
-      if (pkg.pinned) {
-        notes.push(`- ${pkg.name}: pinned (${pkg.source}); skipped by design`);
-      }
-    }
-    const pending = installed.filter((p) => !p.pinned);
-    progress?.startResolve(pending.length);
+    progress?.startResolve(installed.length);
     await runPool(
-      pending,
+      installed,
       async (pkg) => {
         progress?.item(pkg.name);
         try {
@@ -122,7 +116,7 @@ export async function resolveTargets(
           } else if (latest !== pkg.version) {
             targets.push({
               candidate: { name: pkg.name, version: latest, scenario: "update" },
-              baseline: { name: pkg.name, version: pkg.version },
+              baseline: { name: pkg.name, version: pkg.version, pinned: pkg.pinned },
             });
           }
         } catch (err) {

@@ -4,7 +4,7 @@
 
 Security vetting for [Pi](https://pi.dev) extension packages — an evidence-driven gate before you install or update.
 
-Pi installs extension packages with full user permissions and runs their `postinstall` scripts; the built-in updater only tells you that updates exist. pi-vetter evaluates each candidate version against multiple evidence sources and reports an **ALLOW / ASK / DENY** verdict with the full evidence list, so you decide *what* to install — then installs exactly the versions you approved, pinned so `pi update --extensions` never touches them again.
+Pi installs extension packages with full user permissions and runs their `postinstall` scripts; the built-in updater only tells you that updates exist. pi-vetter evaluates each candidate version against multiple evidence sources and reports an **ALLOW / ASK / DENY** verdict with the full evidence list, so you decide *what* to install — then installs exactly the versions you approved, leaving the update policy in your hands.
 
 > pi-vetter can only show that **no risk signal was found** — it can never prove a package is safe. Read the evidence, not just the verdict.
 
@@ -23,7 +23,7 @@ pi install git:github.com/jesset/pi-vetter
 | `/vet` | Read-only evaluation. No arguments = all installed packages with available updates; or pass specs: `/vet npm:foo npm:bar@1.2.3` |
 | `/vet-install` | Same evaluation, then an interactive multi-select (TUI) or grouped confirms (non-TUI) and installs only what you approve |
 
-Approved packages are installed via `pi install npm:<pkg>@<version>` — the pinned spec means Pi's update check skips them afterwards (ADR-0003). Before every install, the registry integrity recorded at scan time is re-checked; a mismatch aborts that install (TOCTOU guard).
+Approved packages are installed via `pi install npm:<pkg>@<version>` — the exact vetted version, guarded by an integrity re-check before every install (TOCTOU). By default the settings entry is then restored to an unpinned spec (ADR-0003, revised): deciding to keep a package out of `pi update --extensions` is yours, not the evaluator's — the install result shows the exact pin command if you want it (`install.pinOnInstall: true` restores the legacy always-pin behaviour). Pinned packages are still evaluated on every `/vet` and marked as such in the report.
 
 ### Verdict model
 
@@ -61,7 +61,8 @@ Rules map evidence to verdicts and can be toggled individually in the config fil
   "rules": { "deny": {}, "ask": { "young-package": true } },
   "cache": { "enabled": true, "ttlHours": 24 },
   "score": { "weights": {} },
-  "network": { "timeoutMs": 30000 }
+  "network": { "timeoutMs": 30000 },
+  "install": { "pinOnInstall": false }
 }
 ```
 

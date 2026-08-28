@@ -236,6 +236,7 @@ src/
 ## 8. Implementation notes（MVP 落地时与 §2/§5 的偏差）
 
 - **Artifacts 为内存文件映射**（`candidateFiles: Map<path, Uint8Array>`），不做磁盘解包——未受信 tarball 的解压存在路径穿越风险且无必要，static/diff 均在内存完成；tar 解析用 `tar-stream`，下载字节先经 `dist.integrity` sha512 校验。
+- **pinned 包照常评估**（#16 修订）：resolveTargets 不再跳过 pinned 条目——有新版本时作为 update target 纳入评估，报告 headline 标注 "baseline is pinned"；`pinOnInstall` 默认 false，批准安装后 settings 条目还原为非 pin spec，安装结果明示手动 pin 命令（见 ADR-0003 修订版）。
 - **provenance 为方向性验证**（MVP）：不执行完整 sigstore 验签（`@sigstore/verify` 需外部 TrustedRoot，包内不带），仅做"attestation 声称的源 vs packument.repository 矛盾检测"（fail 方向有效）；一致时给 info `provenance:declared` 而非 pass `verified`，伪造的 attestation 骗不到加分。完整验签留 Phase 2。
 - **新增规则 `known-vulnerability`**（ask/high）：候选版本自身命中 GHSA/CVE 通告时触发（§5 清单在实现时补齐了该缺口）。
 - **maintainer-change 依赖本地快照**（`~/.pi/agent/pi-vetter/maintainers.json`）：npm registry 不提供维护者历史，首次 vet 记录、后续比对；无快照时仅 info。

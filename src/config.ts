@@ -25,6 +25,7 @@ export function defaultConfig(): VetterConfig {
     cache: { enabled: true, ttlHours: 24 },
     score: { weights: {} },
     network: { timeoutMs: 30_000 },
+    install: { pinOnInstall: false },
   };
 }
 

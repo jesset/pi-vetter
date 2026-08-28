@@ -39,6 +39,8 @@ export interface Candidate {
 export interface Baseline {
   name: string;
   version: string;
+  /** True when the installed baseline is a pinned spec (still evaluated, never auto-skipped). */
+  pinned?: boolean;
 }
 
 export interface Evidence {
@@ -139,4 +141,5 @@ export interface VetterConfig {
   cache: { enabled: boolean; ttlHours: number };
   score: { weights: Partial<Record<string, number>> };
   network: { timeoutMs: number };
+  install: { pinOnInstall: boolean };
 }

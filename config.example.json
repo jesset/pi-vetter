@@ -31,5 +31,6 @@
   },
   "cache": { "enabled": true, "ttlHours": 24 },
   "score": { "weights": {} },
-  "network": { "timeoutMs": 30000 }
+  "network": { "timeoutMs": 30000 },
+  "install": { "pinOnInstall": false }
 }

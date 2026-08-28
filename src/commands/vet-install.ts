@@ -7,6 +7,8 @@ import { type ProgressPort, runVet, type VetDeps } from "./vet.ts";
 
 export interface InstallCommandDeps extends VetDeps {
   exec: ExecFn;
+  pinOnInstall: boolean;
+  unpin: (name: string, version: string) => void;
 }
 
 export interface VetInstallResult {
@@ -44,7 +46,10 @@ export async function runVetInstall(
   }
 
   const chosen = reports.filter((r) => selection.selected.includes(r.candidate.name));
-  const outcomes = await installApproved(deps.exec, chosen);
+  const outcomes = await installApproved(deps.exec, chosen, {
+    unpin: deps.unpin,
+    pinOnInstall: deps.pinOnInstall,
+  });
   return {
     content: [header, `**Install results**\n${renderOutcomes(outcomes)}`]
       .filter(Boolean)
