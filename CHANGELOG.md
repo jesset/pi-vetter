@@ -27,5 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (post-verification)
 
+- Immediate command feedback: `/vet` and `/vet-install` acknowledge instantly (before any network request), and in TUI mode show a live progress widget (`Vetting (2/4) → pkg`) that is cleared on completion; non-TUI keeps the instant acknowledgement
 - VirusTotal scanner (L3, opt-in via API key): hash-first report lookup, upload-on-miss of the exact vetted tarball bytes, async analysis polling; ≥2 engine detections → DENY (`vt-detections`); quota/timeout failures cap the verdict at ASK; hash-report results cached forever
 - Socket.dev scanner (L3, opt-in via API key + org slug): purl-based package alerts; high-risk alerts (gptMalware, installScripts, obfuscatedFile, typosquatting) → ASK (`socket-flagged`), minor alerts informational; quota exhaustion maps to fail-closed capping

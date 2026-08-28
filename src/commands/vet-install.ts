@@ -2,7 +2,7 @@ import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import type { EvaluationReport } from "../core/types.ts";
 import { type ExecFn, installApproved, renderOutcomes } from "../install/gated-installer.ts";
 import { selectForInstall, type UiPort } from "../ui/select.ts";
-import { runVet, type VetDeps } from "./vet.ts";
+import { type ProgressPort, runVet, type VetDeps } from "./vet.ts";
 
 export interface InstallCommandDeps extends VetDeps {
   exec: ExecFn;
@@ -21,8 +21,9 @@ export async function runVetInstall(
   rawArgs: string,
   ctx: ExtensionCommandContext,
   onReport?: (report: EvaluationReport) => void,
+  progress?: ProgressPort,
 ): Promise<string> {
-  const { reports, notes } = await runVet(deps, rawArgs, onReport);
+  const { reports, notes } = await runVet(deps, rawArgs, onReport, progress);
   const header = notes.length > 0 ? `**Notes**\n${notes.join("\n")}` : "";
 
   if (reports.length === 0) {

@@ -5,6 +5,7 @@ import {
   type EvaluationTarget,
   evaluate,
 } from "../core/engine.ts";
+import { runPool } from "../core/pool.ts";
 import type {
   Artifacts,
   EvaluationReport,
@@ -163,14 +164,23 @@ export async function resolveTargets(
 
 const CONCURRENCY = 3;
 
+/** Duck-typed surface of ProgressTracker; injected so the command layer stays UI-free. */
+export interface ProgressPort {
+  start(total: number): void;
+  item(name: string): void;
+  tick(): void;
+}
+
 export async function runVet(
   deps: VetDeps,
   rawArgs: string,
   onReport?: (report: EvaluationReport) => void,
+  progress?: ProgressPort,
 ): Promise<VetResult> {
   const parsed = parseArgs(rawArgs);
   if ("error" in parsed) throw new Error(parsed.error);
   const { targets, notes } = await resolveTargets(deps, parsed.specs);
+  progress?.start(targets.length);
 
   const engineDeps: EngineDeps = {
     scanners: deps.scanners,
@@ -181,20 +191,24 @@ export async function runVet(
   };
 
   const reports: EvaluationReport[] = [];
-  const queue = [...targets];
-  const worker = async (): Promise<void> => {
-    for (let target = queue.shift(); target; target = queue.shift()) {
-      try {
-        const report = await evaluate(engineDeps, target);
-        reports.push(report);
-        onReport?.(report);
-      } catch (err) {
+  await runPool(
+    targets,
+    async (target) => {
+      const report = await evaluate(engineDeps, target);
+      reports.push(report);
+      onReport?.(report);
+      progress?.tick();
+    },
+    {
+      concurrency: CONCURRENCY,
+      onItemStart: (target) => progress?.item(target.candidate.name),
+      onItemError: (target, err) => {
         notes.push(
           `- ${target.candidate.name}@${target.candidate.version}: evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
         );
-      }
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));
+        progress?.tick();
+      },
+    },
+  );
   return { reports, notes };
 }
