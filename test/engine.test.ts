@@ -65,6 +65,7 @@ const config: VetterConfig = {
   rules: { deny: {}, ask: {} },
   cache: { enabled: false, ttlHours: 24 },
   score: { weights: {} },
+  network: { timeoutMs: 30_000 },
 };
 
 const candidate: Candidate = { name: "pkg", version: "2.0.0", scenario: "update" };

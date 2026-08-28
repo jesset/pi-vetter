@@ -12,7 +12,7 @@ import { createOsvScanner } from "./scanners/osv.ts";
 import { createProvenanceScanner } from "./scanners/provenance.ts";
 import { staticScanner } from "./scanners/static-analysis.ts";
 import { createPackageManager, listInstalledPackages } from "./settings.ts";
-import { renderReports } from "./ui/report.ts";
+import { renderReport } from "./ui/report.ts";
 
 function assembleScanners(): SecurityScanner[] {
   const snapshots = createMaintainerSnapshotStore();
@@ -39,16 +39,17 @@ export default function (pi: ExtensionAPI): void {
     fetchPackument,
   };
 
+  const send = (content: string) =>
+    pi.sendMessage({ customType: "pi-vetter", content, display: true });
+
   pi.registerCommand("vet", {
     description: "Evaluate pending extension updates or a specific package (read-only)",
     handler: async (args: string) => {
-      const { reports, notes } = await runVet(vetDeps, args);
-      const content = [renderReports(reports), notes.join("\n")].filter(Boolean).join("\n\n");
-      pi.sendMessage({
-        customType: "pi-vetter",
-        content: content || "No packages to evaluate.",
-        display: true,
-      });
+      const { reports, notes } = await runVet(vetDeps, args, (report) =>
+        send(renderReport(report)),
+      );
+      if (reports.length === 0 && notes.length === 0) send("No packages to evaluate.");
+      else if (notes.length > 0) send(`**Notes**\n${notes.join("\n")}`);
     },
   });
 
@@ -59,8 +60,9 @@ export default function (pi: ExtensionAPI): void {
         { ...vetDeps, exec: (cmd, argv, opts) => pi.exec(cmd, argv, opts) },
         args,
         ctx,
+        (report) => send(renderReport(report)),
       );
-      pi.sendMessage({ customType: "pi-vetter", content, display: true });
+      if (content) send(content);
     },
   });
 }

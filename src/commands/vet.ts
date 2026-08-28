@@ -49,10 +49,11 @@ export interface VetResult {
 export async function buildArtifacts(
   target: EvaluationTarget,
   fetcher: VetDeps["fetchPackument"],
-  signal?: AbortSignal,
+  timeoutMs = 30_000,
 ): Promise<Artifacts> {
   const { candidate, baseline } = target;
-  const packument = await fetcher(candidate.name, signal);
+  const signal = () => AbortSignal.timeout(timeoutMs);
+  const packument = await fetcher(candidate.name, signal());
   const candidateMeta = packument.versions[candidate.version];
   if (!candidateMeta) {
     throw new Error(`version ${candidate.version} not found for ${candidate.name}`);
@@ -60,7 +61,7 @@ export async function buildArtifacts(
   const integrity = candidateMeta.dist.integrity;
   if (!integrity) throw new Error(`no dist.integrity for ${candidate.name}@${candidate.version}`);
 
-  const candidateBytes = await downloadTarball(candidateMeta.dist.tarball, signal);
+  const candidateBytes = await downloadTarball(candidateMeta.dist.tarball, signal());
   if (!verifyIntegrity(candidateBytes, integrity)) {
     throw new Error(`integrity mismatch downloading ${candidate.name}@${candidate.version}`);
   }
@@ -70,12 +71,12 @@ export async function buildArtifacts(
   if (baseline) {
     const baselineMeta = packument.versions[baseline.version];
     if (baselineMeta) {
-      const bytes = await downloadTarball(baselineMeta.dist.tarball, signal);
+      const bytes = await downloadTarball(baselineMeta.dist.tarball, signal());
       baselineFiles = await parseTarball(bytes);
     }
   }
 
-  const downloads = await fetchDownloads(candidate.name, signal);
+  const downloads = await fetchDownloads(candidate.name, signal());
   return {
     candidateFiles,
     baselineFiles,
@@ -157,7 +158,13 @@ export async function resolveTargets(
   return { targets, notes };
 }
 
-export async function runVet(deps: VetDeps, rawArgs: string): Promise<VetResult> {
+const CONCURRENCY = 3;
+
+export async function runVet(
+  deps: VetDeps,
+  rawArgs: string,
+  onReport?: (report: EvaluationReport) => void,
+): Promise<VetResult> {
   const parsed = parseArgs(rawArgs);
   if ("error" in parsed) throw new Error(parsed.error);
   const { targets, notes } = await resolveTargets(deps, parsed.specs);
@@ -166,18 +173,25 @@ export async function runVet(deps: VetDeps, rawArgs: string): Promise<VetResult>
     scanners: deps.scanners,
     config: deps.config,
     cache: deps.cache,
-    buildArtifacts: (target) => buildArtifacts(target, deps.fetchPackument),
+    buildArtifacts: (target) =>
+      buildArtifacts(target, deps.fetchPackument, deps.config.network?.timeoutMs ?? 30_000),
   };
 
   const reports: EvaluationReport[] = [];
-  for (const target of targets) {
-    try {
-      reports.push(await evaluate(engineDeps, target));
-    } catch (err) {
-      notes.push(
-        `- ${target.candidate.name}@${target.candidate.version}: evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+  const queue = [...targets];
+  const worker = async (): Promise<void> => {
+    for (let target = queue.shift(); target; target = queue.shift()) {
+      try {
+        const report = await evaluate(engineDeps, target);
+        reports.push(report);
+        onReport?.(report);
+      } catch (err) {
+        notes.push(
+          `- ${target.candidate.name}@${target.candidate.version}: evaluation failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     }
-  }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));
   return { reports, notes };
 }

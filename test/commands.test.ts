@@ -49,6 +49,7 @@ describe("resolveTargets", () => {
         rules: { deny: {}, ask: {} },
         cache: { enabled: false, ttlHours: 24 },
         score: { weights: {} },
+        network: { timeoutMs: 30_000 },
       },
       cache: { get: () => Promise.resolve(null), set: () => Promise.resolve() },
       scanners: [],

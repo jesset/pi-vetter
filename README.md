@@ -58,7 +58,8 @@ Rules map evidence to verdicts and can be toggled individually in the config fil
   "scanners": { "osv": { "enabled": true, "timeoutMs": 10000 }, "virustotal": { "enabled": false, "apiKey": "" } },
   "rules": { "deny": {}, "ask": { "young-package": true } },
   "cache": { "enabled": true, "ttlHours": 24 },
-  "score": { "weights": {} }
+  "score": { "weights": {} },
+  "network": { "timeoutMs": 30000 }
 }
 ```
 

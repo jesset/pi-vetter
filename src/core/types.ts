@@ -130,4 +130,5 @@ export interface VetterConfig {
   rules: { deny: Partial<Record<string, boolean>>; ask: Partial<Record<string, boolean>> };
   cache: { enabled: boolean; ttlHours: number };
   score: { weights: Partial<Record<string, number>> };
+  network: { timeoutMs: number };
 }

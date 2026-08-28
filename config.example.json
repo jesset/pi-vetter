@@ -30,5 +30,6 @@
     }
   },
   "cache": { "enabled": true, "ttlHours": 24 },
-  "score": { "weights": {} }
+  "score": { "weights": {} },
+  "network": { "timeoutMs": 30000 }
 }

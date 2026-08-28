@@ -24,6 +24,7 @@ export function defaultConfig(): VetterConfig {
     rules: { deny: {}, ask: {} },
     cache: { enabled: true, ttlHours: 24 },
     score: { weights: {} },
+    network: { timeoutMs: 30_000 },
   };
 }
 

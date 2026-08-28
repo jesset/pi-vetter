@@ -58,7 +58,8 @@ Phase 2（可选，默认关闭）：VirusTotal 上传、Socket.dev。
   "scanners": { "osv": { "enabled": true, "timeoutMs": 10000 }, "virustotal": { "enabled": false, "apiKey": "" } },
   "rules": { "deny": {}, "ask": { "young-package": true } },
   "cache": { "enabled": true, "ttlHours": 24 },
-  "score": { "weights": {} }
+  "score": { "weights": {} },
+  "network": { "timeoutMs": 30000 }
 }
 ```
 

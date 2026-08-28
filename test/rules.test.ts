@@ -64,6 +64,7 @@ describe("filterEnabled", () => {
     rules: { deny: {}, ask: { "young-package": false } },
     cache: { enabled: true, ttlHours: 24 },
     score: { weights: {} },
+    network: { timeoutMs: 30_000 },
   };
 
   it("drops findings whose rule is disabled", () => {

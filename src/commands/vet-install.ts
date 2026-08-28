@@ -1,6 +1,6 @@
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import type { EvaluationReport } from "../core/types.ts";
 import { type ExecFn, installApproved, renderOutcomes } from "../install/gated-installer.ts";
-import { renderReports } from "../ui/report.ts";
 import { selectForInstall, type UiPort } from "../ui/select.ts";
 import { runVet, type VetDeps } from "./vet.ts";
 
@@ -20,9 +20,10 @@ export async function runVetInstall(
   deps: InstallCommandDeps,
   rawArgs: string,
   ctx: ExtensionCommandContext,
+  onReport?: (report: EvaluationReport) => void,
 ): Promise<string> {
-  const { reports, notes } = await runVet(deps, rawArgs);
-  const header = [renderReports(reports), notes.join("\n")].filter(Boolean).join("\n\n");
+  const { reports, notes } = await runVet(deps, rawArgs, onReport);
+  const header = notes.length > 0 ? `**Notes**\n${notes.join("\n")}` : "";
 
   if (reports.length === 0) {
     return header || "No packages to evaluate.";
@@ -30,10 +31,10 @@ export async function runVetInstall(
 
   const selection = await selectForInstall(toUiPort(ctx), reports);
   if (selection.cancelled || selection.selected.length === 0) {
-    return `${header}\n\nNothing selected for installation.`;
+    return [header, "Nothing selected for installation."].filter(Boolean).join("\n\n");
   }
 
   const chosen = reports.filter((r) => selection.selected.includes(r.candidate.name));
   const outcomes = await installApproved(deps.exec, chosen);
-  return `${header}\n\n**Install results**\n${renderOutcomes(outcomes)}`;
+  return [header, `**Install results**\n${renderOutcomes(outcomes)}`].filter(Boolean).join("\n\n");
 }
