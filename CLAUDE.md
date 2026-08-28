@@ -1,4 +1,6 @@
-# pi-safe-update
+# pi-vetter
+
+本项目UI/代码全英文（进入 pi.dev/packages 目录的生态一致性），README 双语(2个md文件 README.md 和 README.zh-cn.md)兼顾中文用户
 
 ## Agent skills
 
