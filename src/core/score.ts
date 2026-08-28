@@ -5,6 +5,7 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
   "malicious-package": 100,
   "provenance-conflict": 95,
   "vt-detections": 90,
+  "known-vulnerability": 45,
   "new-lifecycle-script": 40,
   "new-dependency-flagged": 35,
   "credential-access": 50,

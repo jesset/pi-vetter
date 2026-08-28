@@ -31,7 +31,8 @@
     "format": "biome format --write ."
   },
   "dependencies": {
-    "@sigstore/verify": "^4.1.2"
+    "@sigstore/verify": "^4.1.2",
+    "tar-stream": "^3.2.1"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"

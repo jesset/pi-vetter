@@ -34,10 +34,9 @@ function makeArtifacts(opts?: {
   scripts?: Record<string, string>;
 }): Artifacts {
   return {
-    candidateDir: "/tmp/pkg",
-    baselineDir: null,
+    candidateFiles: new Map(),
+    baselineFiles: null,
     candidatePackument: makePackument(opts),
-    baselinePackument: null,
     candidateIntegrity: "sha512-abc",
     downloads: 1000,
   };

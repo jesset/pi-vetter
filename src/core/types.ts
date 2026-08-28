@@ -16,6 +16,7 @@ export type RuleId =
   | "malicious-package"
   | "provenance-conflict"
   | "vt-detections"
+  | "known-vulnerability"
   | "new-lifecycle-script"
   | "maintainer-change"
   | "new-dependency-flagged"
@@ -82,11 +83,13 @@ export interface Packument {
   repository?: { type?: string; url?: string } | string;
 }
 
+/** In-memory file map of a parsed tarball: package-internal path → raw bytes. */
+export type TarFiles = Map<string, Uint8Array>;
+
 export interface Artifacts {
-  candidateDir: string;
-  baselineDir: string | null;
+  candidateFiles: TarFiles;
+  baselineFiles: TarFiles | null;
   candidatePackument: Packument;
-  baselinePackument: Packument | null;
   candidateIntegrity: string;
   downloads: number;
 }

@@ -30,6 +30,11 @@ export const RULES: Record<RuleId, RuleDef> = {
     severity: "critical",
     description: "Multiple antivirus engines flag the tarball on VirusTotal",
   },
+  "known-vulnerability": {
+    kind: "ask",
+    severity: "high",
+    description: "Candidate version has a known vulnerability advisory (GHSA/CVE via OSV)",
+  },
   "new-lifecycle-script": {
     kind: "ask",
     severity: "high",
@@ -129,6 +134,7 @@ const RULE_EVIDENCE_KEYS: Record<string, RuleId> = {
   "osv:malicious": "malicious-package",
   "provenance:conflict": "provenance-conflict",
   "virustotal:detections": "vt-detections",
+  "osv:vulnerability": "known-vulnerability",
   "diff:new-script": "new-lifecycle-script",
   "metadata:maintainer-change": "maintainer-change",
   "osv:new-dependency-advisory": "new-dependency-flagged",
