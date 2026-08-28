@@ -1,7 +1,7 @@
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import type { EvaluationReport } from "../core/types.ts";
 import { type ExecFn, installApproved, renderOutcomes } from "../install/gated-installer.ts";
-import { renderReports } from "../ui/report.ts";
+import { NO_PACKAGES_MESSAGE, renderNotes, renderReports } from "../ui/report.ts";
 import { selectForInstall, type UiPort } from "../ui/select.ts";
 import { type ProgressPort, runVet, type VetDeps } from "./vet.ts";
 
@@ -28,13 +28,11 @@ export async function runVetInstall(
   ctx: ExtensionCommandContext,
   progress?: ProgressPort,
 ): Promise<VetInstallResult> {
-  const { reports, notes } = await runVet(deps, rawArgs, undefined, progress);
-  const header = [renderReports(reports), notes.length > 0 ? `**Notes**\n${notes.join("\n")}` : ""]
-    .filter(Boolean)
-    .join("\n\n");
+  const { reports, notes } = await runVet(deps, rawArgs, progress);
+  const header = [renderReports(reports), renderNotes(notes)].filter(Boolean).join("\n\n");
 
   if (reports.length === 0) {
-    return { content: header || "No packages to evaluate.", reports };
+    return { content: header || NO_PACKAGES_MESSAGE, reports };
   }
 
   const selection = await selectForInstall(toUiPort(ctx), reports);

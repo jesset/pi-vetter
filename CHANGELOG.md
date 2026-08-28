@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- VirusTotal upload+poll flow is bounded by a total deadline (`pollDeadlineMs`, defaulting to the scanner timeoutMs) — previously only individual requests were bounded, letting a stuck analysis stall a package for up to ~30 minutes
+- VirusTotal upload+poll flow is bounded by a single deadline budget (`pollDeadlineMs`, configurable per scanner, defaulting to the scanner timeoutMs) — previously only individual requests were bounded, letting a stuck analysis stall a package for up to ~30 minutes; poll requests are additionally bounded by the remaining budget so a single slow response cannot overshoot
 
 ## [0.1.1] - 2026-08-28
 

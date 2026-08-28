@@ -174,7 +174,6 @@ export interface ProgressPort {
 export async function runVet(
   deps: VetDeps,
   rawArgs: string,
-  onReport?: (report: EvaluationReport) => void,
   progress?: ProgressPort,
 ): Promise<VetResult> {
   const parsed = parseArgs(rawArgs);
@@ -196,7 +195,6 @@ export async function runVet(
     async (target) => {
       const report = await evaluate(engineDeps, target);
       reports.push(report);
-      onReport?.(report);
       progress?.tick();
     },
     {

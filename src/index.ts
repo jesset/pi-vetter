@@ -16,7 +16,7 @@ import { createVirustotalScanner } from "./scanners/virustotal.ts";
 import { createPackageManager, listInstalledPackages } from "./settings.ts";
 import { reportEntryRenderer } from "./ui/entry.ts";
 import { ProgressTracker } from "./ui/progress.ts";
-import { renderReports, summaryLine } from "./ui/report.ts";
+import { NO_PACKAGES_MESSAGE, renderNotes, renderReports, summaryLine } from "./ui/report.ts";
 
 function assembleScanners(config: VetterConfig): SecurityScanner[] {
   const scanners: SecurityScanner[] = [
@@ -37,6 +37,7 @@ function assembleScanners(config: VetterConfig): SecurityScanner[] {
       createVirustotalScanner({
         apiKey: vt.apiKey,
         ...(vt.timeoutMs !== undefined ? { timeoutMs: vt.timeoutMs } : {}),
+        ...(vt.pollDeadlineMs !== undefined ? { pollDeadlineMs: vt.pollDeadlineMs } : {}),
       }),
     );
   }
@@ -102,28 +103,27 @@ export default function (pi: ExtensionAPI): void {
     };
   };
 
+  const notifyAborted = (ctx: ExtensionCommandContext, command: string, err: unknown) => {
+    ctx.ui.notify(
+      `pi-vetter: ${command} aborted — ${err instanceof Error ? err.message : String(err)}`,
+      "error",
+    );
+  };
+
   pi.registerCommand("vet", {
     description: "Evaluate pending extension updates or a specific package (read-only)",
     handler: async (args: string, ctx) => {
       ctx.ui.notify("pi-vetter: /vet started", "info");
       const progress = makeProgress(ctx);
       try {
-        const { reports, notes } = await runVet(vetDeps, args, undefined, progress);
+        const { reports, notes } = await runVet(vetDeps, args, progress);
         progress.finish();
         ctx.ui.notify(summaryLine("/vet", reports), "info");
-        const content = [
-          renderReports(reports),
-          notes.length > 0 ? `**Notes**\n${notes.join("\n")}` : "",
-        ]
-          .filter(Boolean)
-          .join("\n\n");
-        send(content || "No packages to evaluate.");
+        const content = [renderReports(reports), renderNotes(notes)].filter(Boolean).join("\n\n");
+        send(content || NO_PACKAGES_MESSAGE);
       } catch (err) {
         progress.finish();
-        ctx.ui.notify(
-          `pi-vetter: /vet aborted — ${err instanceof Error ? err.message : String(err)}`,
-          "error",
-        );
+        notifyAborted(ctx, "/vet", err);
       }
     },
   });
@@ -145,10 +145,7 @@ export default function (pi: ExtensionAPI): void {
         if (result.content) send(result.content);
       } catch (err) {
         progress.finish();
-        ctx.ui.notify(
-          `pi-vetter: /vet-install aborted — ${err instanceof Error ? err.message : String(err)}`,
-          "error",
-        );
+        notifyAborted(ctx, "/vet-install", err);
       }
     },
   });

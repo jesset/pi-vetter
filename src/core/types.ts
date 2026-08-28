@@ -129,6 +129,8 @@ export interface ScannerConfig {
   apiKey?: string;
   orgSlug?: string;
   timeoutMs?: number;
+  /** VirusTotal only: total budget for upload + polling (default: timeoutMs). */
+  pollDeadlineMs?: number;
 }
 
 export interface VetterConfig {

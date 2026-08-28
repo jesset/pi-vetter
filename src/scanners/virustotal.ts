@@ -80,7 +80,9 @@ export function createVirustotalScanner(options: {
         }
 
         // Unknown sample: upload the exact verified bytes we vetted
-        // (uploads of new files do not consume the daily quota).
+        // (uploads of new files do not consume the daily quota). The
+        // deadline budget covers upload + polling as a whole.
+        const deadline = Date.now() + pollDeadlineMs;
         const form = new FormData();
         form.append(
           "file",
@@ -99,16 +101,16 @@ export function createVirustotalScanner(options: {
         const analysisId = uploaded.data?.id;
         if (!analysisId) throw new Error("VirusTotal upload returned no analysis id");
 
-        // Async analysis: poll until completed or the total deadline hits,
-        // whichever comes first.
-        const deadline = Date.now() + pollDeadlineMs;
+        // Async analysis: poll until completed or the remaining deadline
+        // budget runs out. Poll fetches are bounded by what's left so a
+        // single slow response cannot overshoot the deadline.
         for (let i = 0; i < MAX_POLLS && Date.now() < deadline; i++) {
           await new Promise((r) => setTimeout(r, pollIntervalMs));
           const analysis = await vtFetch(
             `${VT_API}/analyses/${analysisId}`,
             {},
             apiKey,
-            timeoutMs,
+            Math.max(1, deadline - Date.now()),
             doFetch,
           );
           if (!analysis.ok) continue;

@@ -49,6 +49,8 @@ export function renderReport(report: EvaluationReport): string {
 
 const VERDICT_ORDER = { DENY: 0, ASK: 1, ALLOW: 2 } as const;
 
+export const NO_PACKAGES_MESSAGE = "No packages to evaluate.";
+
 /** One-line done notification with verdict counts. */
 export function summaryLine(command: string, reports: EvaluationReport[]): string {
   const counts = { ALLOW: 0, ASK: 0, DENY: 0 };
@@ -56,8 +58,12 @@ export function summaryLine(command: string, reports: EvaluationReport[]): strin
   return `pi-vetter: ${command} done — ${reports.length} vetted: ${counts.ALLOW} ALLOW, ${counts.ASK} ASK, ${counts.DENY} DENY`;
 }
 
+export function renderNotes(notes: string[]): string {
+  return notes.length > 0 ? `**Notes**\n${notes.join("\n")}` : "";
+}
+
 export function renderReports(reports: EvaluationReport[]): string {
-  if (reports.length === 0) return "No packages to evaluate.";
+  if (reports.length === 0) return NO_PACKAGES_MESSAGE;
   return [...reports]
     .sort((a, b) => VERDICT_ORDER[a.verdict] - VERDICT_ORDER[b.verdict])
     .map(renderReport)

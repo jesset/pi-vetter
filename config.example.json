@@ -5,7 +5,7 @@
     "provenance": { "enabled": true, "timeoutMs": 10000 },
     "static": { "enabled": true },
     "diff": { "enabled": true },
-    "virustotal": { "enabled": false, "apiKey": "", "timeoutMs": 60000 },
+    "virustotal": { "enabled": false, "apiKey": "", "timeoutMs": 60000, "pollDeadlineMs": 60000 },
     "socket": { "enabled": false, "apiKey": "", "orgSlug": "" }
   },
   "rules": {
