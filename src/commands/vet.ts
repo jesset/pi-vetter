@@ -82,6 +82,7 @@ export async function buildArtifacts(
   }
 
   const dependencyFiles = new Map<string, TarFiles>();
+  let dependencySkipped = 0;
   if (deepScan?.enabled) {
     const deps = await collectDependencies(packument, candidate.version, fetcher, {
       maxDepth: deepScan.maxDepth,
@@ -90,15 +91,21 @@ export async function buildArtifacts(
     });
     await runPool(
       deps,
-      async (dep) => {
+      async (entry) => {
         try {
-          const depPackument = await fetcher(dep.name, signal());
-          const meta = depPackument.versions[dep.version];
-          if (!meta) return;
+          const meta = entry.packument.versions[entry.node.version];
+          if (!meta) {
+            dependencySkipped += 1;
+            return;
+          }
           const bytes = await downloadTarball(meta.dist.tarball, signal());
-          dependencyFiles.set(depKey(dep), await parseTarball(bytes));
+          if (meta.dist.integrity && !verifyIntegrity(bytes, meta.dist.integrity)) {
+            dependencySkipped += 1;
+            return;
+          }
+          dependencyFiles.set(depKey(entry.node), await parseTarball(bytes));
         } catch {
-          // a single dependency failure must not abort the evaluation
+          dependencySkipped += 1;
         }
       },
       { concurrency: CONCURRENCY },
@@ -114,6 +121,7 @@ export async function buildArtifacts(
     candidateSha256: createHash("sha256").update(candidateBytes).digest("hex"),
     candidateTarball: candidateBytes,
     dependencyFiles,
+    dependencySkipped,
     downloads,
   };
 }

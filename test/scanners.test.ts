@@ -71,6 +71,7 @@ function ctx(opts?: {
       candidateIntegrity: "sha512-x",
       candidateTarball: new Uint8Array(0),
       dependencyFiles: new Map(),
+      dependencySkipped: 0,
       candidateSha256: "abc",
       downloads: 1000,
     },

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Packument } from "../src/core/types.ts";
-import { collectDependencies } from "../src/npm/dependencies.ts";
+import { collectDependencies, resolveVersion } from "../src/npm/dependencies.ts";
 
 function packumentWith(name: string, version: string, deps: Record<string, string>): Packument {
   return {
@@ -42,7 +42,7 @@ describe("collectDependencies", () => {
       fetcher(fixture()),
       { maxDepth: 3, maxPackages: 20 },
     );
-    const names = deps.map((d) => `${d.name}@${d.version}`);
+    const names = deps.map((d) => `${d.node.name}@${d.node.version}`);
     expect(names).toEqual(["a@1.5.0", "b@2.1.0", "c@3.2.0"]);
   });
 
@@ -53,7 +53,7 @@ describe("collectDependencies", () => {
       fetcher(fixture()),
       { maxDepth: 1, maxPackages: 20 },
     );
-    expect(deps.map((d) => d.name).sort()).toEqual(["a", "b"]);
+    expect(deps.map((d) => d.node.name).sort()).toEqual(["a", "b"]);
   });
 
   it("respects maxPackages", async () => {
@@ -77,6 +77,38 @@ describe("collectDependencies", () => {
       maxDepth: 2,
       maxPackages: 20,
     });
-    expect(deps.map((d) => d.name)).toEqual(["a", "c"]);
+    expect(deps.map((d) => d.node.name)).toEqual(["a", "c"]);
+  });
+});
+
+describe("resolveVersion", () => {
+  const multi: Packument = {
+    name: "m",
+    "dist-tags": { latest: "3.0.0" },
+    versions: Object.fromEntries(
+      ["1.0.0", "1.2.0", "1.9.9", "2.0.0", "3.0.0"].map((v) => [
+        v,
+        { version: v, dist: { integrity: "x", tarball: "x" } },
+      ]),
+    ),
+    time: {},
+    maintainers: [],
+  };
+
+  it("picks the highest version satisfying a caret range (not latest)", () => {
+    expect(resolveVersion("^1.1.0", multi)).toBe("1.9.9");
+  });
+
+  it("picks the highest version satisfying a tilde range", () => {
+    expect(resolveVersion("~1.2.0", multi)).toBe("1.2.0");
+  });
+
+  it("falls back to latest when the range has no plain-semver shape", () => {
+    expect(resolveVersion("*", multi)).toBe("3.0.0");
+    expect(resolveVersion("workspace:^1.0.0", multi)).toBe("3.0.0");
+  });
+
+  it("falls back to latest when no in-range version exists", () => {
+    expect(resolveVersion("^4.0.0", multi)).toBe("3.0.0");
   });
 });

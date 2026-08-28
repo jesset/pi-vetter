@@ -219,7 +219,10 @@ src/
     "ask":   { "new-lifecycle-script": true, "...": true }
   },
   "cache":  { "enabled": true, "ttlHours": 24 },   // virustotal hash 查询结果永久
-  "score":  { "weights": { "...": 30 } }
+  "score":  { "weights": { "...": 30 } },
+  "network": { "timeoutMs": 30000 },
+  "install": { "pinOnInstall": false },
+  "dependencies": { "enabled": true, "maxDepth": 2, "maxPackages": 20 }   // 深扫（§8）
 }
 ```
 
@@ -241,10 +244,11 @@ src/
 - **provenance 为方向性验证**（MVP）：不执行完整 sigstore 验签（`@sigstore/verify` 需外部 TrustedRoot，包内不带），仅做"attestation 声称的源 vs packument.repository 矛盾检测"（fail 方向有效）；一致时给 info `provenance:declared` 而非 pass `verified`，伪造的 attestation 骗不到加分。完整验签留 Phase 2。
 - **新增规则 `known-vulnerability`**（ask/high）：候选版本自身命中 GHSA/CVE 通告时触发（§5 清单在实现时补齐了该缺口）。
 - **maintainer-change 依赖本地快照**（`~/.pi/agent/pi-vetter/maintainers.json`）：npm registry 不提供维护者历史，首次 vet 记录、后续比对；无快照时仅 info。
+- **依赖深扫已实现**（#7，超出原 P2 计划提前落地）：BFS 收集传递依赖闭包（`dependencies.*` 配置，默认开启、深度 2 / 上限 20），每个依赖解析为**声明 range 内的最高已发布版本**（caret/tilde/exact/>=，无匹配时回退 latest——近似已披露）；tarball 内存下载并经 `dist.integrity` 校验后过静态模式扫描，命中以 `static:dependency-hits` info 证据逐依赖归属标注，**本阶段不影响 Verdict**（规则化待真实数据校准后）。抓取/校验失败的依赖计入 `dependencySkipped` 并在证据中披露（ADR-0002 证据保真：不为缩水样本做正面 clean 断言）。
 
 ## 9. Out of scope（明确不做，未来可能重开）
 
 - **拦截 agent 自发起的 `pi update --extensions`**（`tool_call` 事件监听 agent 通过 bash 执行更新命令的企图，提示改走 `/vet`）：防 prompt-injection 驱动的依赖更新。决策：不进 MVP，大概率不做；若未来威胁模型变化可重开。来源：`docs/research-safe-update-gate.md` 建议。
 - 本地安装物与 registry 基线的偏差检测（生态已有指纹方案覆盖）。
-- 依赖 tarball 的深度扫描与逐依赖 VT 上传（P2 再议）。
+- 逐依赖 VirusTotal 上传（依赖深扫本体已于 #7 落地，见 §8；逐依赖外部引擎上传仍留待真实需求）。
 - OpenSSF Package Analysis 接入（仅 BigQuery，需 GCP 凭证，违背"免费无 key"原则）。

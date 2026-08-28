@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { defaultConfig } from "../src/config.ts";
 import { type CacheStore, type EngineDeps, evaluate } from "../src/core/engine.ts";
 import type {
   Artifacts,
@@ -40,6 +41,7 @@ function makeArtifacts(opts?: {
     candidateIntegrity: "sha512-abc",
     candidateTarball: new Uint8Array(0),
     dependencyFiles: new Map(),
+    dependencySkipped: 0,
     candidateSha256: "abc123",
     downloads: 1000,
   };
@@ -63,15 +65,7 @@ function ev(key: string, status: Evidence["status"], detail = key): Evidence {
   return { scanner: "osv", key, status, detail };
 }
 
-const config: VetterConfig = {
-  scanners: {},
-  rules: { deny: {}, ask: {} },
-  cache: { enabled: false, ttlHours: 24 },
-  score: { weights: {} },
-  network: { timeoutMs: 30_000 },
-  install: { pinOnInstall: false },
-  dependencies: { enabled: false, maxDepth: 2, maxPackages: 20 },
-};
+const config: VetterConfig = { ...defaultConfig() };
 
 const candidate: Candidate = { name: "pkg", version: "2.0.0", scenario: "update" };
 

@@ -105,6 +105,8 @@ export interface Artifacts {
   candidateSha256: string;
   /** Deep-scan dependency tarballs keyed by `name@version` (empty when disabled). */
   dependencyFiles: Map<string, TarFiles>;
+  /** Dependencies the deep scan tried but failed to fetch/verify (ADR-0002 transparency). */
+  dependencySkipped: number;
   downloads: number;
 }
 

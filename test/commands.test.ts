@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { parseArgs, resolveTargets } from "../src/commands/vet.ts";
+import { defaultConfig } from "../src/config.ts";
 import type { Packument } from "../src/core/types.ts";
 import { installApproved, installSpec } from "../src/install/gated-installer.ts";
 import type { InstalledPackage } from "../src/settings.ts";
@@ -44,15 +45,7 @@ describe("resolveTargets", () => {
 
   function deps(installed: InstalledPackage[]) {
     return {
-      config: {
-        scanners: {},
-        rules: { deny: {}, ask: {} },
-        cache: { enabled: false, ttlHours: 24 },
-        score: { weights: {} },
-        network: { timeoutMs: 30_000 },
-        install: { pinOnInstall: false },
-        dependencies: { enabled: false, maxDepth: 2, maxPackages: 20 },
-      },
+      config: { ...defaultConfig() },
       cache: { get: () => Promise.resolve(null), set: () => Promise.resolve() },
       scanners: [],
       listInstalled: () => installed,

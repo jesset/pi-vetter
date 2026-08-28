@@ -21,6 +21,7 @@ function ctx(name = "pkg", version = "2.0.0"): ScannerContext {
       candidateIntegrity: "sha512-x",
       candidateTarball: new Uint8Array(0),
       dependencyFiles: new Map(),
+      dependencySkipped: 0,
       candidateSha256: "abc",
       downloads: 1,
     },

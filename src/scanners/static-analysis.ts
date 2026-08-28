@@ -49,18 +49,25 @@ export const staticScanner: SecurityScanner = {
       });
     }
 
-    if (ctx.artifacts.dependencyFiles && ctx.artifacts.dependencyFiles.size > 0) {
+    if (
+      ctx.artifacts.dependencyFiles &&
+      (ctx.artifacts.dependencyFiles.size > 0 || ctx.artifacts.dependencySkipped > 0)
+    ) {
+      const skipped =
+        ctx.artifacts.dependencySkipped > 0
+          ? ` (+${ctx.artifacts.dependencySkipped} skipped: fetch/verify failed)`
+          : "";
       const hits: string[] = [];
       for (const [key, depFiles] of ctx.artifacts.dependencyFiles) {
         const dep = scanPatterns(depFiles);
-        const categories: Array<[string, string[]]> = [
-          ["credential", dep.credentials],
-          ["obfuscation", dep.obfuscation],
-          ["prompt-injection", dep.promptInjection],
-          ["child-process", dep.childProcess],
-          ["eval", dep.evalFamily],
-        ];
-        for (const [label, list] of categories) {
+        const summary: Record<string, string[]> = {
+          credential: dep.credentials,
+          obfuscation: dep.obfuscation,
+          "prompt-injection": dep.promptInjection,
+          "child-process": dep.childProcess,
+          eval: dep.evalFamily,
+        };
+        for (const [label, list] of Object.entries(summary)) {
           if (list.length > 0) hits.push(`${key}: ${label} x${list.length}`);
         }
       }
@@ -69,15 +76,15 @@ export const staticScanner: SecurityScanner = {
           scanner: "static",
           key: "static:dependency-hits",
           status: "info",
-          detail: `pattern hits inside dependency tarballs (informational in MVP): ${hits.slice(0, 6).join("; ")}${hits.length > 6 ? ` (+${hits.length - 6} more)` : ""}`,
+          detail: `pattern hits inside dependency tarballs (informational in MVP): ${hits.slice(0, 6).join("; ")}${hits.length > 6 ? ` (+${hits.length - 6} more)` : ""}${skipped}`,
           data: hits,
         });
       } else {
         evidences.push({
           scanner: "static",
           key: "static:dependencies-clean",
-          status: "pass",
-          detail: `no pattern hits across ${ctx.artifacts.dependencyFiles.size} scanned dependency tarball(s)`,
+          status: "info",
+          detail: `no pattern hits across ${ctx.artifacts.dependencyFiles.size} scanned dependency tarball(s)${skipped}`,
         });
       }
     }
