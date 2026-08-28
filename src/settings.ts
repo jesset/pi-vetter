@@ -29,11 +29,20 @@ export function createPackageManager(
   return new DefaultPackageManager({ cwd, agentDir, settingsManager });
 }
 
-export function listInstalledPackages(pm: DefaultPackageManager): InstalledPackage[] {
+export interface InstalledInventory {
+  packages: InstalledPackage[];
+  skippedSources: string[]; // non-npm sources, disclosed instead of silently dropped (#23)
+}
+
+export function listInstalledPackages(pm: DefaultPackageManager): InstalledInventory {
   const out: InstalledPackage[] = [];
+  const skipped: string[] = [];
   for (const configured of pm.listConfiguredPackages()) {
     const spec = npmSpecFromSource(configured.source);
-    if (!spec) continue; // git/local sources are out of scope for MVP
+    if (!spec) {
+      skipped.push(configured.source);
+      continue;
+    }
     let version: string | null = null;
     if (configured.installedPath) {
       try {
@@ -53,5 +62,5 @@ export function listInstalledPackages(pm: DefaultPackageManager): InstalledPacka
       scope: configured.scope,
     });
   }
-  return out;
+  return { packages: out, skippedSources: skipped };
 }

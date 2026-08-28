@@ -48,7 +48,7 @@ describe("resolveTargets", () => {
       config: { ...defaultConfig() },
       cache: { get: () => Promise.resolve(null), set: () => Promise.resolve() },
       scanners: [],
-      listInstalled: () => installed,
+      listInstalled: () => ({ packages: installed, skippedSources: [] as string[] }),
       fetchPackument: vi.fn((name: string) =>
         Promise.resolve(packument(name, name === "pinned-pkg" ? ["1.0.0"] : ["1.0.0", "2.0.0"])),
       ),
@@ -135,6 +135,20 @@ describe("resolveTargets", () => {
     expect(targets).toHaveLength(1);
     expect(progress.startResolve).toHaveBeenCalledWith(2);
     expect(progress.tick).toHaveBeenCalledTimes(2);
+  });
+
+  it("discloses skipped non-npm sources in notes when scanning installed packages", async () => {
+    const d = deps([]);
+    d.listInstalled = () => ({
+      packages: [],
+      skippedSources: ["git:git@github.com:foo/bar", "/local/path"],
+    });
+    const { targets, notes } = await resolveTargets(d, []);
+    expect(targets).toHaveLength(0);
+    expect(notes).toEqual([
+      "- git:git@github.com:foo/bar: not an npm source, out of scope",
+      "- /local/path: not an npm source, out of scope",
+    ]);
   });
 });
 

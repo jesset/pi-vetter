@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Non-npm sources (git/local) are no longer silently skipped: a no-argument `/vet` now discloses every skipped source in the report notes (`- git:github.com/a/b: not an npm source, out of scope`), and a report consisting only of skipped sources shows that disclosure instead of the empty-state message (#23)
+
 ## [0.2.3] - 2026-08-28
 
 ### Added
