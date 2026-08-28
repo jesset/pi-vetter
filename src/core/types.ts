@@ -115,6 +115,8 @@ export interface EvaluationReport {
   evidences: Evidence[];
   riskScore: number;
   hasLifecycleScripts: boolean;
+  /** Registry dist.integrity recorded at scan time; re-checked before install (TOCTOU). */
+  candidateIntegrity: string;
 }
 
 export interface ScannerConfig {

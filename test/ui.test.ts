@@ -19,6 +19,7 @@ function report(verdict: EvaluationReport["verdict"], name = "pkg"): EvaluationR
     evidences: [{ scanner: "osv", key: "osv:clean", status: "pass", detail: "clean" }],
     riskScore: 0,
     hasLifecycleScripts: false,
+    candidateIntegrity: "sha512-x",
   };
 }
 
@@ -84,14 +85,13 @@ describe("CheckboxComponent", () => {
     expect(done).toHaveBeenCalledWith({ selected: [], cancelled: true });
   });
 
-  it("a toggles all selectable items", () => {
+  it("a selects all selectable items when not all are checked", () => {
     const { comp, done } = make([
       ["a", "ALLOW"],
       ["b", "ASK"],
       ["c", "DENY"],
     ]);
-    comp.handleInput("a"); // uncheck all (a was checked)
-    comp.handleInput("a"); // check all
+    comp.handleInput("a"); // not every selectable is checked → select all
     comp.handleInput("\r");
     expect(done).toHaveBeenCalledWith({ selected: ["a", "b"], cancelled: false });
   });

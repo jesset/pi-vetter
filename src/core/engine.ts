@@ -127,5 +127,6 @@ export async function evaluate(
       deps.config,
     ),
     hasLifecycleScripts: hasLifecycleScripts(artifacts, target.candidate),
+    candidateIntegrity: artifacts.candidateIntegrity,
   };
 }

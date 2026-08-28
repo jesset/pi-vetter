@@ -1,0 +1,184 @@
+import { describe, expect, it, vi } from "vitest";
+import { parseArgs, resolveTargets } from "../src/commands/vet.ts";
+import type { Packument } from "../src/core/types.ts";
+import { installApproved, installSpec } from "../src/install/gated-installer.ts";
+import type { InstalledPackage } from "../src/settings.ts";
+
+describe("parseArgs", () => {
+  it("accepts empty args (installed-by-default)", () => {
+    expect(parseArgs("")).toEqual({ specs: [] });
+    expect(parseArgs("   ")).toEqual({ specs: [] });
+  });
+
+  it("accepts multiple npm specs", () => {
+    expect(parseArgs("npm:foo npm:bar@1.2.3")).toEqual({
+      specs: ["npm:foo", "npm:bar@1.2.3"],
+    });
+  });
+
+  it("rejects the installed keyword and non-npm specs", () => {
+    expect(parseArgs("installed")).toHaveProperty("error");
+    expect(parseArgs("git:github.com/a/b")).toHaveProperty("error");
+  });
+});
+
+describe("resolveTargets", () => {
+  const packument = (name: string, versions: string[]): Packument => ({
+    name,
+    "dist-tags": { latest: versions[versions.length - 1] ?? "" },
+    versions: Object.fromEntries(
+      versions.map((v) => [
+        v,
+        {
+          version: v,
+          dist: {
+            integrity: "sha512-x",
+            tarball: `https://registry.npmjs.org/${name}/-/${name}-${v}.tgz`,
+          },
+        },
+      ]),
+    ),
+    time: { created: "2020-01-01T00:00:00.000Z" },
+    maintainers: [],
+  });
+
+  function deps(installed: InstalledPackage[]) {
+    return {
+      config: {
+        scanners: {},
+        rules: { deny: {}, ask: {} },
+        cache: { enabled: false, ttlHours: 24 },
+        score: { weights: {} },
+      },
+      cache: { get: () => Promise.resolve(null), set: () => Promise.resolve() },
+      scanners: [],
+      listInstalled: () => installed,
+      fetchPackument: vi.fn((name: string) =>
+        Promise.resolve(packument(name, name === "pinned-pkg" ? ["1.0.0"] : ["1.0.0", "2.0.0"])),
+      ),
+    };
+  }
+
+  it("builds update targets for outdated, non-pinned packages", async () => {
+    const d = deps([
+      { source: "npm:pkg", name: "pkg", version: "1.0.0", pinned: false, scope: "user" },
+      {
+        source: "npm:pinned-pkg@1.0.0",
+        name: "pinned-pkg",
+        version: "1.0.0",
+        pinned: true,
+        scope: "user",
+      },
+    ]);
+    const { targets, notes } = await resolveTargets(d, []);
+    expect(targets).toEqual([
+      {
+        candidate: { name: "pkg", version: "2.0.0", scenario: "update" },
+        baseline: { name: "pkg", version: "1.0.0" },
+      },
+    ]);
+    expect(notes[0]).toContain("pinned-pkg");
+  });
+
+  it("resolves explicit specs to install or update scenario", async () => {
+    const base = deps([
+      { source: "npm:old", name: "old", version: "1.0.0", pinned: false, scope: "user" },
+    ]);
+    base.fetchPackument = vi.fn((name: string) =>
+      Promise.resolve(packument(name, name === "old" ? ["1.0.0", "2.0.0"] : ["1.5.0"])),
+    );
+    const { targets } = await resolveTargets(base, ["npm:old", "npm:brand-new@1.5.0"]);
+    expect(targets).toHaveLength(2);
+    expect(targets[0]).toMatchObject({
+      candidate: { name: "old", version: "2.0.0", scenario: "update" },
+      baseline: { version: "1.0.0" },
+    });
+    expect(targets[1]).toMatchObject({
+      candidate: { name: "brand-new", version: "1.5.0", scenario: "install" },
+      baseline: null,
+    });
+  });
+});
+
+describe("installApproved", () => {
+  const report = (name: string, version: string, integrity: string) => ({
+    candidate: { name, version, scenario: "update" as const },
+    baseline: { name, version: "0.0.1" },
+    verdict: "ALLOW" as const,
+    capped: false,
+    findings: [],
+    evidences: [],
+    riskScore: 0,
+    hasLifecycleScripts: false,
+    candidateIntegrity: integrity,
+  });
+
+  function mockRegistry(integrityByPkg: Record<string, string>) {
+    return vi.fn((name: string) =>
+      Promise.resolve({
+        name,
+        "dist-tags": {},
+        versions: {
+          "2.0.0": {
+            version: "2.0.0",
+            dist: { integrity: integrityByPkg[name], tarball: "x" },
+          },
+        },
+        time: {},
+        maintainers: [],
+      }),
+    );
+  }
+
+  it("installs when integrity matches (ADR-0003: pi install with pinned spec)", async () => {
+    const fetchPackument = mockRegistry({ pkg: "sha512-good" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) =>
+        fetchPackument("pkg").then((p) => new Response(JSON.stringify(p), init)),
+      ),
+    );
+    const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "", code: 0 }));
+    const outcomes = await installApproved(exec as never, [report("pkg", "2.0.0", "sha512-good")]);
+    vi.unstubAllGlobals();
+    expect(outcomes).toEqual([{ name: "pkg", version: "2.0.0", status: "installed" }]);
+    expect(exec).toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+  });
+
+  it("skips on integrity mismatch (TOCTOU guard)", async () => {
+    const fetchPackument = mockRegistry({ pkg: "sha512-rotated" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) =>
+        fetchPackument("pkg").then((p) => new Response(JSON.stringify(p), init)),
+      ),
+    );
+    const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "", code: 0 }));
+    const outcomes = await installApproved(exec as never, [
+      report("pkg", "2.0.0", "sha512-original"),
+    ]);
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "integrity-mismatch" });
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it("reports failed installs", async () => {
+    const fetchPackument = mockRegistry({ pkg: "sha512-good" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: string, init?: RequestInit) =>
+        fetchPackument("pkg").then((p) => new Response(JSON.stringify(p), init)),
+      ),
+    );
+    const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "boom", code: 1 }));
+    const outcomes = await installApproved(exec as never, [report("pkg", "2.0.0", "sha512-good")]);
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "failed" });
+  });
+});
+
+describe("installSpec", () => {
+  it("formats scoped and plain names", () => {
+    expect(installSpec("@scope/pkg", "1.0.0")).toBe("npm:@scope/pkg@1.0.0");
+  });
+});
