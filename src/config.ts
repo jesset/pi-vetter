@@ -7,7 +7,7 @@ import type { MaintainerSnapshotStore } from "./scanners/metadata.ts";
 export const DATA_DIR = join(homedir(), ".pi", "agent", "pi-vetter");
 
 export function dataDir(explicit?: string): string {
-  return explicit ?? DATA_DIR;
+  return explicit ?? process.env.PI_VETTER_DATA_DIR ?? DATA_DIR;
 }
 
 export function defaultConfig(): VetterConfig {

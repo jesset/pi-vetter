@@ -1,7 +1,11 @@
 import type { Evidence, ScannerContext, ScanResult, SecurityScanner } from "../core/types.ts";
 
-const OSV_QUERY_BATCH = "https://api.osv.dev/v1/querybatch";
 const MAX_DEPS = 50;
+
+/** Overridable OSV API base (private mirrors); read lazily per call. */
+export function osvApiBase(): string {
+  return process.env.PI_VETTER_OSV_API ?? "https://api.osv.dev";
+}
 
 interface OsvVulnRef {
   id: string;
@@ -28,7 +32,7 @@ async function queryBatch(
   queries: Array<{ name: string; version: string | undefined }>,
   timeoutMs: number,
 ): Promise<OsvVulnRef[][]> {
-  const res = await fetch(OSV_QUERY_BATCH, {
+  const res = await fetch(`${osvApiBase()}/v1/querybatch`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

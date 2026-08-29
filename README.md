@@ -68,6 +68,18 @@ Rules map evidence to verdicts and can be toggled individually in the config fil
 
 Scan results are cached per `scanner + pkg@version` under `~/.pi/agent/pi-vetter/cache/`; VirusTotal hash lookups are cached forever. Caching can be disabled entirely.
 
+### Environment variables
+
+Optional endpoint overrides (unset = public defaults). Useful for private registries/mirrors:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PI_VETTER_NPM_REGISTRY` | `https://registry.npmjs.org` | npm registry base URL |
+| `PI_VETTER_DOWNLOADS_API` | `https://api.npmjs.org/downloads/point/last-month` | downloads-count API base |
+| `PI_VETTER_OSV_API` | `https://api.osv.dev` | OSV API base |
+| `PI_VETTER_DATA_DIR` | `~/.pi/agent/pi-vetter` | data dir (config, cache, maintainer snapshots) |
+| `PI_VETTER_AGENT_DIR` | `~/.pi/agent` | agent dir (settings.json read for the installed-package inventory) |
+
 ## Caveats
 
 - Approving an install still executes the package's install scripts — Pi does not install with `--ignore-scripts`; pi-vetter warns but cannot prevent this.
@@ -80,7 +92,8 @@ Scan results are cached per `scanner + pkg@version` under `~/.pi/agent/pi-vetter
 ```bash
 npm install
 npm run typecheck && npm test && npm run lint
-node --experimental-strip-types scripts/smoke.ts npm:<pkg>   # real end-to-end vet
+npx vitest run --project e2e                                # end-to-end suite (local fake registry)
+LIVE_E2E=1 npx vitest run --project live                    # live e2e against the real registry (network)
 ```
 
 Design docs: [`docs/design.md`](./docs/design.md), ADRs in [`docs/adr/`](./docs/adr/), research in [`research/`](./research/).

@@ -68,6 +68,18 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 
 扫描结果按 `扫描器 + 包@版本` 缓存在 `~/.pi/agent/pi-vetter/cache/`；VirusTotal 哈希查询永久缓存。缓存可整体关闭。
 
+### 环境变量
+
+可选的端点覆盖（未设置时使用公共默认值），适用于私有 registry/镜像：
+
+| 变量 | 默认值 | 用途 |
+| --- | --- | --- |
+| `PI_VETTER_NPM_REGISTRY` | `https://registry.npmjs.org` | npm registry 基础 URL |
+| `PI_VETTER_DOWNLOADS_API` | `https://api.npmjs.org/downloads/point/last-month` | 下载量 API 基础 URL |
+| `PI_VETTER_OSV_API` | `https://api.osv.dev` | OSV API 基础 URL |
+| `PI_VETTER_DATA_DIR` | `~/.pi/agent/pi-vetter` | 数据目录（配置、缓存、维护者快照） |
+| `PI_VETTER_AGENT_DIR` | `~/.pi/agent` | agent 目录（读取 settings.json 获取已安装清单） |
+
 ## 注意事项
 
 - 批准安装仍会执行该包的 install 脚本——Pi 安装不带 `--ignore-scripts`；pi-vetter 会警告但无法阻止
@@ -80,7 +92,8 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 ```bash
 npm install
 npm run typecheck && npm test && npm run lint
-node --experimental-strip-types scripts/smoke.ts npm:<pkg>   # 真实端到端评估
+npx vitest run --project e2e                                # 端到端测试（本地 fake registry）
+LIVE_E2E=1 npx vitest run --project live                    # 真实 registry 端到端评估（联网）
 ```
 
 设计文档：[`docs/design.md`](./docs/design.md)（中文）、ADR 见 [`docs/adr/`](./docs/adr/)、调研报告见 [`research/`](./research/)。
