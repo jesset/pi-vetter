@@ -26,6 +26,8 @@ export interface HarnessOptions {
   osvHits?: Record<string, string[]>;
   /** OSV scanner timeout (default 10s); shrink for timeout-fault scenarios. */
   osvTimeoutMs?: number;
+  /** Disable the scan-result cache (cross-run state scenarios; cache hits would mask the second run's scanners). */
+  cacheEnabled?: boolean;
 }
 
 export interface VetHarness {
@@ -66,6 +68,7 @@ export async function withHarness<T>(
 
   try {
     const config = loadConfig(dataDir);
+    if (opts.cacheEnabled === false) config.cache.enabled = false;
     const deps: VetDeps = {
       config,
       cache: createFileCache(join(dataDir, "cache"), config.cache),
