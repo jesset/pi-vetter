@@ -13,7 +13,7 @@ const quietPkg: FixturePackage = {
 };
 
 /** Non-TUI context: the selection flow goes through group confirm dialogs. */
-const fakeCtx = (confirm: () => Promise<boolean>): ExtensionCommandContext =>
+const fakeCtx = (confirm: () => boolean | Promise<boolean>): ExtensionCommandContext =>
   ({
     mode: "cli",
     ui: {

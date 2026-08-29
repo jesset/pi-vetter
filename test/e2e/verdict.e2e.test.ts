@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { runVet } from "../../src/commands/vet.ts";
-import { renderReports } from "../../src/ui/report.ts";
 import type { EvaluationReport } from "../../src/core/types.ts";
+import { renderReports } from "../../src/ui/report.ts";
 import type { FixturePackage } from "./helpers/fixtures.ts";
 import { withHarness } from "./helpers/harness.ts";
 
@@ -38,9 +38,9 @@ describe("e2e: verdict derivation & presentation", () => {
         expect(report?.verdict).toBe("ASK");
         expect(report?.findings.map((f) => f.ruleId)).toEqual(["new-lifecycle-script"]);
         expect(report?.hasLifecycleScripts).toBe(true);
-        expect(report?.evidences.some((e) => e.key === "diff:new-script" && e.status === "fail")).toBe(
-          true,
-        );
+        expect(
+          report?.evidences.some((e) => e.key === "diff:new-script" && e.status === "fail"),
+        ).toBe(true);
         // the fixed lifecycle-script warning must surface in the report
         expect(renderReports(reports)).toContain("**Lifecycle scripts**");
       },
@@ -190,7 +190,9 @@ describe("e2e: verdict derivation & presentation", () => {
         expect(report?.verdict).toBe("ASK");
         expect(report?.findings.map((f) => f.ruleId)).toEqual(["maintainer-change"]);
         expect(
-          report?.evidences.some((e) => e.key === "metadata:maintainer-change" && e.status === "fail"),
+          report?.evidences.some(
+            (e) => e.key === "metadata:maintainer-change" && e.status === "fail",
+          ),
         ).toBe(true);
       },
     );
