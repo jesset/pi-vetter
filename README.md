@@ -93,7 +93,7 @@ Optional endpoint overrides (unset = public defaults). Useful for private regist
 npm install
 npm run typecheck && npm test && npm run lint
 npx vitest run --project e2e                                # end-to-end suite (local fake registry)
-node --experimental-strip-types scripts/smoke.ts npm:<pkg>   # real end-to-end vet
+LIVE_E2E=1 npx vitest run --project live                    # live e2e against the real registry (network)
 ```
 
 Design docs: [`docs/design.md`](./docs/design.md), ADRs in [`docs/adr/`](./docs/adr/), research in [`research/`](./research/).

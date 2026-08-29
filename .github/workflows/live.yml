@@ -1,0 +1,25 @@
+name: Live E2E
+
+# Real-network vetting against third-party endpoints (npm registry, OSV,
+# downloads API). Those can flap or change their data at any moment, so a
+# failed nightly informs but never blocks: the job is continue-on-error by
+# design. Runs on schedule only — never on push or PR.
+on:
+  schedule:
+    - cron: "30 3 * * *" # daily, 03:30 UTC
+  workflow_dispatch:
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --project live
+        env:
+          LIVE_E2E: "1"

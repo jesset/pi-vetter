@@ -19,6 +19,14 @@ export default defineConfig({
           singleFork: true,
         },
       },
+      {
+        test: {
+          // real network; skipped unless LIVE_E2E=1 (nightly CI / opt-in)
+          name: "live",
+          include: ["test/live/**/*.test.ts"],
+          testTimeout: 120_000,
+        },
+      },
     ],
   },
 });

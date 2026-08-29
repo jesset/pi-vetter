@@ -93,7 +93,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 npm install
 npm run typecheck && npm test && npm run lint
 npx vitest run --project e2e                                # 端到端测试（本地 fake registry）
-node --experimental-strip-types scripts/smoke.ts npm:<pkg>   # 真实端到端评估
+LIVE_E2E=1 npx vitest run --project live                    # 真实 registry 端到端评估（联网）
 ```
 
 设计文档：[`docs/design.md`](./docs/design.md)（中文）、ADR 见 [`docs/adr/`](./docs/adr/)、调研报告见 [`research/`](./research/)。
