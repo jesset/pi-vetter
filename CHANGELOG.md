@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- E2E test harness (#26): npm registry / downloads API / OSV API endpoints and the data dir are overridable via environment variables (`PI_VETTER_NPM_REGISTRY`, `PI_VETTER_DOWNLOADS_API`, `PI_VETTER_OSV_API`, `PI_VETTER_DATA_DIR`) — also usable for private registries/mirrors; vitest is split into unit and e2e projects, and the first end-to-end scenario (clean update → ALLOW) runs the full chain against an in-memory fake registry served over real HTTP
+
 ### Fixed
 
 - Non-npm sources (git/local) are no longer silently skipped: a no-argument `/vet` now discloses every skipped source in the report notes (`- git:github.com/a/b: not an npm source, out of scope`), and a report consisting only of skipped sources shows that disclosure instead of the empty-state message (#23)
