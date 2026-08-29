@@ -28,7 +28,7 @@ function compareVersions(a: string, b: string): number {
  * when no in-range version exists.
  */
 export function resolveVersion(range: string, packument: Packument): string | undefined {
-  const latest = packument["dist-tags"]?.["latest"];
+  const latest = packument["dist-tags"]?.latest;
   const m = /^(\^|~|>=|=|v)?(\d+)\.(\d+)(?:\.(\d+))?$/.exec(range.trim());
   if (!m) return latest;
   const [, op, maj, min, patch] = m;
