@@ -24,6 +24,8 @@ export interface HarnessOptions {
   skippedSources?: string[];
   /** Initial OSV advisory ids per package name (mutable via registry.osvVulns). */
   osvHits?: Record<string, string[]>;
+  /** OSV scanner timeout (default 10s); shrink for timeout-fault scenarios. */
+  osvTimeoutMs?: number;
 }
 
 export interface VetHarness {
@@ -69,7 +71,7 @@ export async function withHarness<T>(
       cache: createFileCache(join(dataDir, "cache"), config.cache),
       scanners: [
         createMetadataScanner(createMaintainerSnapshotStore(dataDir)),
-        createOsvScanner(config.scanners.osv?.timeoutMs ?? 10_000),
+        createOsvScanner(opts.osvTimeoutMs ?? config.scanners.osv?.timeoutMs ?? 10_000),
         createProvenanceScanner({ timeoutMs: config.scanners.provenance?.timeoutMs ?? 10_000 }),
         staticScanner,
         diffScanner,
