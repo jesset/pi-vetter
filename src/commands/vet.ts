@@ -17,7 +17,7 @@ import type {
 import { collectDependencies, depKey } from "../npm/dependencies.ts";
 import { fetchDownloads, latestVersion } from "../npm/registry.ts";
 import { downloadTarball, parseTarball, verifyIntegrity } from "../npm/tarball.ts";
-import type { InstalledPackage } from "../settings.ts";
+import type { InstalledInventory } from "../settings.ts";
 
 export type ParsedArgs = { specs: string[] } | { error: string };
 
@@ -41,7 +41,7 @@ export interface VetDeps {
   config: VetterConfig;
   cache: CacheStore;
   scanners: SecurityScanner[];
-  listInstalled: () => InstalledPackage[];
+  listInstalled: () => InstalledInventory;
   fetchPackument: (name: string, signal?: AbortSignal) => Promise<Packument>;
 }
 
@@ -147,7 +147,7 @@ export async function resolveTargets(
 }> {
   const notes: string[] = [];
   const targets: EvaluationTarget[] = [];
-  const installed = deps.listInstalled();
+  const { packages: installed, skippedSources } = deps.listInstalled();
 
   if (specs.length === 0) {
     progress?.startResolve(installed.map((p) => p.name));
@@ -173,6 +173,9 @@ export async function resolveTargets(
       },
       { concurrency: CONCURRENCY },
     );
+    for (const source of skippedSources) {
+      notes.push(`- ${source}: not an npm source, out of scope`);
+    }
     return { targets, notes };
   }
 
