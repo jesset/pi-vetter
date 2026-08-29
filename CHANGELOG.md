@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The agent dir (`~/.pi/agent`, read for the installed-package inventory and written on install/unpin) is overridable via `PI_VETTER_AGENT_DIR` (#30)
 - Live E2E suite (#31): `LIVE_E2E=1 npx vitest run --project live` vets fixed quiet packages (left-pad@1.3.0, ms@2.1.3) against the real npm registry/OSV endpoints, asserting invariants (verdict present, uncapped, full scanner chain, sha512 integrity) rather than specific verdicts; a non-blocking nightly GitHub Actions workflow runs it on schedule. `npm test` runs unit + e2e only; the one-off `scripts/smoke.ts` is gone (the live suite replaces it)
 
+### Changed
+
+- Progress widget (#18): per-package checklist rows (`·` pending / `…` in-flight / `✓` done) during both the resolving and vetting phases, replacing the single `(done/total) → current` counter whose "current package" line was unstable under concurrent evaluation; rows carry no verdicts — conclusions stay in the final batched report
+
 ### Fixed
 
 - Non-npm sources (git/local) are no longer silently skipped: a no-argument `/vet` now discloses every skipped source in the report notes (`- git:github.com/a/b: not an npm source, out of scope`), and a report consisting only of skipped sources shows that disclosure instead of the empty-state message (#23)

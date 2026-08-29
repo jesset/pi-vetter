@@ -8,42 +8,59 @@ describe("ProgressTracker", () => {
     expect(tracker.lines()).toEqual(["pi-vetter…"]);
   });
 
-  it("shows the resolving phase before vetting starts", () => {
+  it("lists every package as pending when resolving starts", () => {
     const tracker = new ProgressTracker("pi-vetter");
-    tracker.startResolve(3);
-    expect(tracker.lines()).toEqual(["pi-vetter: resolving packages (0/3)"]);
+    tracker.startResolve(["pkg-a", "pkg-b"]);
+    expect(tracker.lines()).toEqual(["pi-vetter: resolving packages (0/2)", "· pkg-a", "· pkg-b"]);
+  });
 
+  it("marks rows in-flight on item and done on tick, with out-of-order completion", () => {
+    const tracker = new ProgressTracker("pi-vetter");
+    tracker.startResolve(["pkg-a", "pkg-b", "pkg-c"]);
     tracker.item("pkg-a");
-    expect(tracker.lines()).toEqual(["pi-vetter: resolving packages (0/3)", "→ pkg-a"]);
+    tracker.item("pkg-b");
+    expect(tracker.lines()).toEqual([
+      "pi-vetter: resolving packages (0/3)",
+      "… pkg-a",
+      "… pkg-b",
+      "· pkg-c",
+    ]);
 
-    tracker.tick();
-    expect(tracker.lines()).toEqual(["pi-vetter: resolving packages (1/3)"]);
-
-    tracker.start(2);
-    expect(tracker.lines()).toEqual(["pi-vetter: vetting (0/2)"]);
+    tracker.tick("pkg-b");
+    expect(tracker.lines()).toEqual([
+      "pi-vetter: resolving packages (1/3)",
+      "… pkg-a",
+      "✓ pkg-b",
+      "· pkg-c",
+    ]);
   });
 
-  it("counts completed packages and shows the current one", () => {
+  it("resets to a fresh vetting checklist when vetting starts", () => {
     const tracker = new ProgressTracker("pi-vetter");
-    tracker.start(4);
-    expect(tracker.lines()).toEqual(["pi-vetter: vetting (0/4)"]);
-
-    tracker.item("pi-web-access");
-    expect(tracker.lines()).toEqual(["pi-vetter: vetting (0/4)", "→ pi-web-access"]);
-
-    tracker.tick();
-    tracker.item("pi-mcp-adapter");
-    expect(tracker.lines()).toEqual(["pi-vetter: vetting (1/4)", "→ pi-mcp-adapter"]);
+    tracker.startResolve(["pkg-a", "pkg-b"]);
+    tracker.tick("pkg-a");
+    tracker.start(["pkg-b"]);
+    expect(tracker.lines()).toEqual(["pi-vetter: vetting (0/1)", "· pkg-b"]);
   });
 
-  it("shows completion when all packages finished", () => {
+  it("marks every row done and appends done when all packages finished", () => {
     const tracker = new ProgressTracker("pi-vetter");
-    tracker.start(2);
+    tracker.start(["a", "b"]);
     tracker.item("a");
-    tracker.tick();
+    tracker.tick("a");
     tracker.item("b");
-    tracker.tick();
-    expect(tracker.lines()).toEqual(["pi-vetter: vetting (2/2) done"]);
+    tracker.tick("b");
+    expect(tracker.lines()).toEqual(["pi-vetter: vetting (2/2) done", "✓ a", "✓ b"]);
+  });
+
+  it("tracks duplicate row names independently", () => {
+    const tracker = new ProgressTracker("pi-vetter");
+    tracker.start(["a", "a"]);
+    tracker.item("a");
+    tracker.item("a");
+    tracker.tick("a");
+    tracker.tick("a");
+    expect(tracker.lines()).toEqual(["pi-vetter: vetting (2/2) done", "✓ a", "✓ a"]);
   });
 });
 
