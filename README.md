@@ -78,6 +78,7 @@ Optional endpoint overrides (unset = public defaults). Useful for private regist
 | `PI_VETTER_DOWNLOADS_API` | `https://api.npmjs.org/downloads/point/last-month` | downloads-count API base |
 | `PI_VETTER_OSV_API` | `https://api.osv.dev` | OSV API base |
 | `PI_VETTER_DATA_DIR` | `~/.pi/agent/pi-vetter` | data dir (config, cache, maintainer snapshots) |
+| `PI_VETTER_AGENT_DIR` | `~/.pi/agent` | agent dir (settings.json read for the installed-package inventory) |
 
 ## Caveats
 

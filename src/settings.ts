@@ -5,6 +5,10 @@ import { DefaultPackageManager, SettingsManager } from "@earendil-works/pi-codin
 
 export const DEFAULT_AGENT_DIR = join(homedir(), ".pi", "agent");
 
+export function agentDir(explicit?: string): string {
+  return explicit ?? process.env.PI_VETTER_AGENT_DIR ?? DEFAULT_AGENT_DIR;
+}
+
 export interface InstalledPackage {
   source: string; // e.g. npm:foo@1.2.3
   name: string;
@@ -21,12 +25,10 @@ export function npmSpecFromSource(source: string): { name: string; pinned: boole
   return { name: spec.slice(0, at), pinned: true };
 }
 
-export function createPackageManager(
-  cwd = process.cwd(),
-  agentDir = DEFAULT_AGENT_DIR,
-): DefaultPackageManager {
-  const settingsManager = SettingsManager.create(cwd, agentDir);
-  return new DefaultPackageManager({ cwd, agentDir, settingsManager });
+export function createPackageManager(cwd = process.cwd(), dir?: string): DefaultPackageManager {
+  const root = agentDir(dir);
+  const settingsManager = SettingsManager.create(cwd, root);
+  return new DefaultPackageManager({ cwd, agentDir: root, settingsManager });
 }
 
 export interface InstalledInventory {

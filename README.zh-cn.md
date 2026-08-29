@@ -78,6 +78,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 | `PI_VETTER_DOWNLOADS_API` | `https://api.npmjs.org/downloads/point/last-month` | 下载量 API 基础 URL |
 | `PI_VETTER_OSV_API` | `https://api.osv.dev` | OSV API 基础 URL |
 | `PI_VETTER_DATA_DIR` | `~/.pi/agent/pi-vetter` | 数据目录（配置、缓存、维护者快照） |
+| `PI_VETTER_AGENT_DIR` | `~/.pi/agent` | agent 目录（读取 settings.json 获取已安装清单） |
 
 ## 注意事项
 

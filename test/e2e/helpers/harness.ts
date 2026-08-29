@@ -28,6 +28,11 @@ export interface HarnessOptions {
   osvTimeoutMs?: number;
   /** Disable the scan-result cache (cross-run state scenarios; cache hits would mask the second run's scanners). */
   cacheEnabled?: boolean;
+  /**
+   * Redirect PI_VETTER_AGENT_DIR (entrypoint tests: settings.json lives here
+   * instead of the real ~/.pi/agent).
+   */
+  agentDir?: string;
 }
 
 export interface VetHarness {
@@ -43,6 +48,7 @@ const ENV_KEYS = [
   "PI_VETTER_DOWNLOADS_API",
   "PI_VETTER_OSV_API",
   "PI_VETTER_DATA_DIR",
+  "PI_VETTER_AGENT_DIR",
 ] as const;
 
 /**
@@ -65,6 +71,7 @@ export async function withHarness<T>(
   process.env.PI_VETTER_DOWNLOADS_API = registry.downloadsUrl;
   process.env.PI_VETTER_OSV_API = registry.osvUrl;
   process.env.PI_VETTER_DATA_DIR = dataDir;
+  if (opts.agentDir) process.env.PI_VETTER_AGENT_DIR = opts.agentDir;
 
   try {
     const config = loadConfig(dataDir);

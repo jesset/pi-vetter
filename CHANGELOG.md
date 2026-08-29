@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - E2E test harness (#26): npm registry / downloads API / OSV API endpoints and the data dir are overridable via environment variables (`PI_VETTER_NPM_REGISTRY`, `PI_VETTER_DOWNLOADS_API`, `PI_VETTER_OSV_API`, `PI_VETTER_DATA_DIR`) — also usable for private registries/mirrors; vitest is split into unit and e2e projects, and the first end-to-end scenario (clean update → ALLOW) runs the full chain against an in-memory fake registry served over real HTTP
+- The agent dir (`~/.pi/agent`, read for the installed-package inventory and written on install/unpin) is overridable via `PI_VETTER_AGENT_DIR` (#30)
 
 ### Fixed
 
