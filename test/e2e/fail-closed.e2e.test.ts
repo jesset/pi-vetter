@@ -45,7 +45,8 @@ describe("e2e: fail-closed under fault injection", () => {
         expect(report?.verdict).toBe("ASK");
         expect(report?.capped).toBe(true);
         expect(osvIncomplete(report)?.status).toBe("incomplete");
-        expect(osvIncomplete(report)?.detail).toContain("errored");
+        // #35: the underlying failure reason must be diagnosable from the report
+        expect(osvIncomplete(report)?.detail).toContain("errored: OSV querybatch failed: HTTP 500");
 
         // the fault is contained: osv is the ONLY incomplete evidence
         expect(

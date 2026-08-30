@@ -54,6 +54,8 @@ export interface Evidence {
 export interface ScanResult {
   scanner: ScannerName;
   status: "ok" | "error" | "timeout" | "quota-exhausted";
+  /** Failure message for status "error", so the incomplete evidence is diagnosable (#35). */
+  error?: string;
   evidences: Evidence[];
 }
 

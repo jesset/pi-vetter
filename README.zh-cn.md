@@ -43,7 +43,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 | L2 | `static` | 代码文件模式扫描：凭据访问、混淆特征、prompt-injection 标记、eval 族；既有命中为 info，新命中为 finding；install 场景（无基线）凭据/混淆命中降为 info，prompt-injection 始终为硬信号 |
 | L2 | `diff` | 新旧 tarball 对比：新增 lifecycle 脚本、新增依赖、新增 child_process、新增外联端点 |
 | L3 | `virustotal` | 先按哈希查询已有样本、未命中再上传（上传新文件不消耗每日配额）；≥2 引擎检出 → DENY。默认关闭，配置 API key 启用 |
-| L3 | `socket` | Socket.dev 包告警（gptMalware、installScripts、obfuscatedFile、typosquatting 等）；高风险告警 → ASK（`socket-flagged`）。默认关闭——注意免费层每小时仅约 5 次 purl 查询，启用后常态性配额耗尽（判定将封顶 ASK） |
+| L3 | `socket` | Socket.dev 包告警（gptMalware、installScripts、obfuscatedFile、typosquatting 等）；高风险告警 → ASK（`socket-flagged`）。默认关闭——注意免费 token 的配额是按调用扣减的余额制（每次 purl 查询消耗一块），余额耗尽后常态性配额不足（判定将封顶 ASK） |
 
 可选 L3 引擎默认关闭，在配置文件中按 API key 逐个启用。当已启用引擎配额耗尽或失败时，判定封顶为 ASK（fail-closed），证据中说明原因。
 

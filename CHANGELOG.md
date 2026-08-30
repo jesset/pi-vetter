@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Scanner failures are diagnosable from the report: the `errored` incomplete evidence now carries the underlying reason (e.g. `errored: Socket purl scan failed: HTTP 502`) instead of a bare "errored"; timeout/quota-exhausted wording unchanged (#35)
+
 ## [0.3.0] - 2026-08-30
 
 ### Added

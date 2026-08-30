@@ -35,7 +35,7 @@ function incompleteEvidence(scanner: Evidence["scanner"], result: ScanResult): E
       ? "timed out"
       : result.status === "quota-exhausted"
         ? "API quota exhausted"
-        : "errored";
+        : `errored${result.error ? `: ${result.error}` : ""}`;
   return {
     scanner,
     key: `${scanner}:incomplete`,
@@ -75,8 +75,13 @@ export async function runScanner(
   let result: ScanResult;
   try {
     result = await scanner.scan(ctx);
-  } catch {
-    result = { scanner: scanner.name, status: "error", evidences: [] };
+  } catch (err) {
+    result = {
+      scanner: scanner.name,
+      status: "error",
+      evidences: [],
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
   if (deps.cache && result.status === "ok") {
     await deps.cache.set(scanner.name, key, result);
