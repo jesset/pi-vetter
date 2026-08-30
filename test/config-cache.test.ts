@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createFileCache } from "../src/cache.ts";
-import { createMaintainerSnapshotStore, defaultConfig, loadConfig } from "../src/config.ts";
+import {
+  createMaintainerSnapshotStore,
+  defaultConfig,
+  loadConfig,
+  scannerConfigGaps,
+} from "../src/config.ts";
 import type { ScanResult } from "../src/core/types.ts";
 import { npmSpecFromSource } from "../src/settings.ts";
 
@@ -103,5 +108,40 @@ describe("npmSpecFromSource", () => {
       pinned: true,
     });
     expect(npmSpecFromSource("git:github.com/a/b")).toBeNull();
+  });
+});
+
+describe("scannerConfigGaps", () => {
+  const configWith = (scanners: Record<string, unknown>) => ({
+    ...defaultConfig(),
+    scanners: { ...defaultConfig().scanners, ...scanners },
+  });
+
+  it("flags virustotal enabled without an apiKey", () => {
+    const gaps = scannerConfigGaps(configWith({ virustotal: { enabled: true } }));
+    expect(gaps).toEqual([{ name: "virustotal", missing: ["apiKey"] }]);
+  });
+
+  it("lists every missing socket credential field", () => {
+    expect(scannerConfigGaps(configWith({ socket: { enabled: true } }))).toEqual([
+      { name: "socket", missing: ["apiKey", "orgSlug"] },
+    ]);
+    expect(scannerConfigGaps(configWith({ socket: { enabled: true, apiKey: "k" } }))).toEqual([
+      { name: "socket", missing: ["orgSlug"] },
+    ]);
+  });
+
+  it("stays silent for disabled or fully configured scanners", () => {
+    expect(
+      scannerConfigGaps(configWith({ virustotal: { enabled: false }, socket: { enabled: false } })),
+    ).toEqual([]);
+    expect(
+      scannerConfigGaps(
+        configWith({
+          virustotal: { enabled: true, apiKey: "k" },
+          socket: { enabled: true, apiKey: "k", orgSlug: "org" },
+        }),
+      ),
+    ).toEqual([]);
   });
 });

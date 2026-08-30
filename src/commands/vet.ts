@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { type ScannerConfigGap, scannerConfigGaps } from "../config.ts";
 import {
   type CacheStore,
   type EngineDeps,
@@ -130,6 +131,19 @@ function lookupFailedNote(name: string, err: unknown): string {
   return `- ${name}: registry lookup failed: ${err instanceof Error ? err.message : String(err)}`;
 }
 
+const FREE_KEY_HINT: Record<ScannerConfigGap["name"], string> = {
+  virustotal: "free public key: register at virustotal.com",
+  socket: "free tier key: register at socket.dev",
+};
+
+/** #33: a scanner declared enabled without credentials must be disclosed, not silently skipped. */
+export function scannerGapNotes(config: VetterConfig): string[] {
+  return scannerConfigGaps(config).map(
+    (gap) =>
+      `- ${gap.name}: enabled but not configured (${gap.missing.join(", ")} missing) — scanner skipped (${FREE_KEY_HINT[gap.name]})`,
+  );
+}
+
 /** Parse an `npm:<pkg>[@<version>]` spec into its name and optional version. */
 function parseSpec(spec: string): { name: string; version?: string } {
   const body = spec.slice("npm:".length);
@@ -233,7 +247,8 @@ export async function runVet(
 ): Promise<VetResult> {
   const parsed = parseArgs(rawArgs);
   if ("error" in parsed) throw new Error(parsed.error);
-  const { targets, notes } = await resolveTargets(deps, parsed.specs, progress);
+  const { targets, notes: resolvedNotes } = await resolveTargets(deps, parsed.specs, progress);
+  const notes = [...scannerGapNotes(deps.config), ...resolvedNotes];
   progress?.start(targets.map((t) => t.candidate.name));
 
   const engineDeps: EngineDeps = {

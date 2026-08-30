@@ -45,6 +45,26 @@ function merge<T>(base: T, override: unknown): T {
   return out as T;
 }
 
+export interface ScannerConfigGap {
+  name: "virustotal" | "socket";
+  missing: string[]; // required credential fields absent from config
+}
+
+/** Scanners declared enabled but lacking their required credentials (#33). */
+export function scannerConfigGaps(config: VetterConfig): ScannerConfigGap[] {
+  const gaps: ScannerConfigGap[] = [];
+  const vt = config.scanners.virustotal;
+  if (vt?.enabled && !vt.apiKey) gaps.push({ name: "virustotal", missing: ["apiKey"] });
+  const socket = config.scanners.socket;
+  if (socket?.enabled) {
+    const missing = [!socket.apiKey && "apiKey", !socket.orgSlug && "orgSlug"].filter(
+      (field): field is string => typeof field === "string",
+    );
+    if (missing.length > 0) gaps.push({ name: "socket", missing });
+  }
+  return gaps;
+}
+
 export function loadConfig(dir?: string): VetterConfig {
   const root = dataDir(dir);
   const file = join(root, "config.json");
