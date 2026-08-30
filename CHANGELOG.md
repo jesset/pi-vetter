@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A scanner enabled without its credentials (VirusTotal `apiKey`, Socket `apiKey`/`orgSlug`) is no longer silently unregistered: `/vet` and `/vet-install` warn at start and disclose each skipped scanner in the report Notes, including the free-key registration hint; `enabled: false` stays fully silent (#33)
 - Progress widget (#18): per-package checklist rows (`·` pending / `…` in-flight / `✓` done) during both the resolving and vetting phases, replacing the single `(done/total) → current` counter whose "current package" line was unstable under concurrent evaluation; rows carry no verdicts — conclusions stay in the final batched report
 
 ### Fixed

@@ -53,7 +53,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 
 ## 配置
 
-`~/.pi/agent/pi-vetter/config.json`（首次运行自动生成默认值；样例见 [`config.example.json`](./config.example.json)）：
+`~/.pi/agent/pi-vetter/config.json`（首次运行自动生成默认值；样例见 [`config.example.json`](./config.example.json)）。若 scanner 设了 `enabled: true` 但缺少凭据，该 scanner 不会注册——命令开始时会给出 warning 通知，报告 Notes 中也会逐条披露被跳过的 scanner（两家 API 均无匿名访问；VirusTotal 与 Socket 的免费额度都需要注册换取 key）：
 
 ```jsonc
 {

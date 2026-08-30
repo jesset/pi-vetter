@@ -90,6 +90,26 @@ describe("e2e: verdict derivation & presentation", () => {
     );
   });
 
+  it("discloses scanners enabled but missing credentials instead of running silently (#33)", async () => {
+    const pkg: FixturePackage = {
+      name: "gap-pkg",
+      versions: [
+        { version: "1.0.0", files: [{ path: "index.js", content: "module.exports = 1;\n" }] },
+      ],
+    };
+    await withHarness({ fixtures: [pkg] }, async ({ deps }) => {
+      deps.config.scanners.virustotal = { enabled: true, timeoutMs: 1000 };
+      deps.config.scanners.socket = { enabled: true };
+      const { notes } = await runVet(deps, "npm:gap-pkg");
+      expect(notes).toContain(
+        "- virustotal: enabled but not configured (apiKey missing) — scanner skipped (free public key: register at virustotal.com)",
+      );
+      expect(notes).toContain(
+        "- socket: enabled but not configured (apiKey, orgSlug missing) — scanner skipped (free tier key: register at socket.dev)",
+      );
+    });
+  });
+
   it("attributes deep-scan pattern hits to the dependency without failing the candidate", async () => {
     const host: FixturePackage = {
       name: "host-pkg",

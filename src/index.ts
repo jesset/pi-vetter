@@ -3,7 +3,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-c
 import { createFileCache } from "./cache.ts";
 import { runVet } from "./commands/vet.ts";
 import { runVetInstall } from "./commands/vet-install.ts";
-import { createMaintainerSnapshotStore, dataDir, loadConfig } from "./config.ts";
+import { createMaintainerSnapshotStore, dataDir, loadConfig, scannerConfigGaps } from "./config.ts";
 import type { SecurityScanner, VetterConfig } from "./core/types.ts";
 import { installSpec } from "./install/gated-installer.ts";
 import { fetchPackument } from "./npm/registry.ts";
@@ -115,10 +115,22 @@ export default function (pi: ExtensionAPI): void {
     );
   };
 
+  // #33: a scanner declared enabled without credentials is silently unusable —
+  // warn up front so the user learns it before the report lands in Notes.
+  const warnScannerGaps = (ctx: ExtensionCommandContext) => {
+    for (const gap of scannerConfigGaps(config)) {
+      ctx.ui.notify(
+        `pi-vetter: ${gap.name} is enabled but missing ${gap.missing.join(", ")} — scanner will not run (see Notes for the free-key hint)`,
+        "warning",
+      );
+    }
+  };
+
   pi.registerCommand("vet", {
     description: "Evaluate pending extension updates or a specific package (read-only)",
     handler: async (args: string, ctx) => {
       ctx.ui.notify("pi-vetter: /vet started", "info");
+      warnScannerGaps(ctx);
       const progress = makeProgress(ctx);
       try {
         const { reports, notes } = await runVet(vetDeps, args, progress);
@@ -151,6 +163,7 @@ export default function (pi: ExtensionAPI): void {
     description: "Evaluate, then interactively install approved packages",
     handler: async (args: string, ctx) => {
       ctx.ui.notify("pi-vetter: /vet-install started", "info");
+      warnScannerGaps(ctx);
       const progress = makeProgress(ctx);
       try {
         const result = await runVetInstall(

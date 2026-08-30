@@ -53,7 +53,7 @@ Rules map evidence to verdicts and can be toggled individually in the config fil
 
 ## Configuration
 
-`~/.pi/agent/pi-vetter/config.json` (created with defaults on first run; see [`config.example.json`](./config.example.json)):
+`~/.pi/agent/pi-vetter/config.json` (created with defaults on first run; see [`config.example.json`](./config.example.json)). A scanner set to `enabled: true` without its credentials is not registered — you get a warning notification at command start and a disclosure line in the report Notes (there is no anonymous access; both VirusTotal and Socket free tiers require registering for a key):
 
 ```jsonc
 {
