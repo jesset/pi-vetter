@@ -2,6 +2,8 @@
 
 [简体中文](./README.zh-cn.md)
 
+[![npm version](https://img.shields.io/npm/v/pi-vetter)](https://www.npmjs.com/package/pi-vetter) [![npm downloads](https://img.shields.io/npm/dm/pi-vetter)](https://www.npmjs.com/package/pi-vetter) [![license](https://img.shields.io/npm/l/pi-vetter)](./LICENSE) [![node](https://img.shields.io/node/v/pi-vetter)](https://nodejs.org)
+
 Security vetting for [Pi](https://pi.dev) extension packages — an evidence-driven gate before you install or update.
 
 Pi installs extension packages with full user permissions and runs their `postinstall` scripts; the built-in updater only tells you that updates exist. pi-vetter evaluates each candidate version against multiple evidence sources and reports an **ALLOW / ASK / DENY** verdict with the full evidence list, so you decide *what* to install — then installs exactly the versions you approved, leaving the update policy in your hands.

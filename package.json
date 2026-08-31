@@ -12,7 +12,12 @@
     "security",
     "supply-chain",
     "vulnerability",
-    "scanner"
+    "scanner",
+    "audit",
+    "cli",
+    "osv",
+    "sigstore",
+    "typosquatting"
   ],
   "pi": {
     "extensions": [

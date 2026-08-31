@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- MIT `LICENSE` file at the repo root (the license was declared in package.json but the text was missing); README badge row (npm version / downloads / license / node) in both READMEs; GitHub topics expanded for discoverability
+
+### Changed
+
+- npm keywords expanded (`audit`, `cli`, `osv`, `sigstore`, `typosquatting`) for better registry search hits
+
 ## [0.3.1] - 2026-08-31
 
 ### Added

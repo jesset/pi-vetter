@@ -2,6 +2,8 @@
 
 [English](./README.md)
 
+[![npm version](https://img.shields.io/npm/v/pi-vetter)](https://www.npmjs.com/package/pi-vetter) [![npm downloads](https://img.shields.io/npm/dm/pi-vetter)](https://www.npmjs.com/package/pi-vetter) [![license](https://img.shields.io/npm/l/pi-vetter)](./LICENSE) [![node](https://img.shields.io/node/v/pi-vetter)](https://nodejs.org)
+
 Pi 扩展包的安全评估器——在安装或更新之前做证据驱动的门禁。
 
 Pi 以完整用户权限安装扩展包并执行其 `postinstall` 脚本，而内建更新提示只告诉你"有更新"。pi-vetter 对每个候选版本做多路证据评估，给出 **ALLOW / ASK / DENY** 判定与完整证据清单，由你决定装什么——然后只安装你批准的版本，更新策略始终掌握在你手里。
