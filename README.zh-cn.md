@@ -8,6 +8,10 @@ Pi 以完整用户权限安装扩展包并执行其 `postinstall` 脚本，而�
 
 > pi-vetter 只能证明"未发现风险信号"，永远无法证明一个包是安全的。请阅读证据，而不只看判定。
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jesset/pi-vetter/main/docs/demo.gif" alt="pi-vetter 在 Pi TUI 中运行 /vet——单包判定、风险分与完整证据清单" width="860">
+</p>
+
 ## 安装
 
 ```bash

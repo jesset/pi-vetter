@@ -8,6 +8,10 @@ Pi installs extension packages with full user permissions and runs their `postin
 
 > pi-vetter can only show that **no risk signal was found** — it can never prove a package is safe. Read the evidence, not just the verdict.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jesset/pi-vetter/main/docs/demo.gif" alt="pi-vetter running /vet in the Pi TUI — verdict, risk score and full evidence list for one package" width="860">
+</p>
+
 ## Install
 
 ```bash
