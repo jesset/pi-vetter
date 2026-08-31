@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-31
+
+### Added
+
+- README demo GIF (`docs/demo.gif`, ~9s, recorded via `scripts/demo.tape` with [vhs](https://github.com/charmbracelet/vhs)): a full `/vet npm:@narumitw/pi-statusline` run in the Pi TUI — from the update-available banner through the resolving/vetting progress widget to the complete report (verdict, risk score, full evidence list); embedded above the install section in both READMEs, referenced by absolute URL so npm/pi.dev rendering can resolve it
+
 ### Changed
 
 - Scanner failures are diagnosable from the report: the `errored` incomplete evidence now carries the underlying reason (e.g. `errored: Socket purl scan failed: HTTP 502`) instead of a bare "errored"; timeout/quota-exhausted wording unchanged (#35)
