@@ -1,4 +1,7 @@
 import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { buildArtifacts, parseArgs, policyNotes, resolveTargets } from "../src/commands/vet.ts";
 import { defaultConfig } from "../src/config.ts";
@@ -8,6 +11,7 @@ import {
   installApproved,
   installSpec,
 } from "../src/install/gated-installer.ts";
+import { createInstalledFilesReader } from "../src/install/installed-files.ts";
 import type { InstalledPackage } from "../src/settings.ts";
 import { makeTarball } from "./e2e/helpers/fixtures.ts";
 
@@ -406,7 +410,7 @@ describe("diffInstalledFiles (#48)", () => {
     expect(diffInstalledFiles({ "a.js": sha("1") }, files([["a.js", "1"]]))).toBeNull();
   });
 
-  it("ignores npm-managed files inside the package directory", () => {
+  it("ignores npm's root lockfile but flags deeper same-name files", () => {
     expect(
       diffInstalledFiles(
         { "a.js": sha("1") },
@@ -416,6 +420,14 @@ describe("diffInstalledFiles (#48)", () => {
         ]),
       ),
     ).toBeNull();
+    const diff = diffInstalledFiles(
+      { "a.js": sha("1") },
+      files([
+        ["a.js", "1"],
+        ["sub/.package-lock.json", "{}"],
+      ]),
+    );
+    expect(diff?.extra).toEqual(["sub/.package-lock.json"]);
   });
 
   it("reports missing, changed and unexpected files", () => {
@@ -488,7 +500,7 @@ describe("installApproved post-install verification (#48)", () => {
     );
     vi.unstubAllGlobals();
     expect(outcomes[0]).toMatchObject({ status: "installed" });
-    expect(outcomes[0]?.message).toContain("on-disk files match the vetted artifact");
+    expect(outcomes[0]?.message).toContain("verified: on-disk files match the vetted artifact");
   });
 
   it("warns with a removal recommendation on byte divergence", async () => {
@@ -516,6 +528,37 @@ describe("installApproved post-install verification (#48)", () => {
     vi.unstubAllGlobals();
     expect(outcomes[0]).toMatchObject({ status: "installed" });
     expect(outcomes[0]?.message).toContain("post-install verification unavailable");
+  });
+});
+
+describe("createInstalledFilesReader (#48)", () => {
+  it("matches pinned and unpinned source forms and reads the tree", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pi-vetter-inst-"));
+    const pkgDir = join(root, "pkg");
+    mkdirSync(join(pkgDir, "lib"), { recursive: true });
+    writeFileSync(join(pkgDir, "index.js"), "exports = 1;");
+    writeFileSync(join(pkgDir, "lib", "a.js"), "exports = 2;");
+    const pm = {
+      listConfiguredPackages: () => [
+        { source: "npm:other-pkg@1.0.0", installedPath: join(root, "other") },
+        { source: "npm:pkg@2.0.0", installedPath: pkgDir },
+      ],
+    };
+    const read = createInstalledFilesReader(pm as never);
+    const files = await read("pkg");
+    expect(files).not.toBeNull();
+    expect([...(files?.keys() ?? [])].sort()).toEqual(["index.js", "lib/a.js"]);
+    expect(new TextDecoder().decode(files?.get("index.js") ?? new Uint8Array())).toBe(
+      "exports = 1;",
+    );
+  });
+
+  it("returns null when no configured source matches or the path is missing", async () => {
+    const pm = {
+      listConfiguredPackages: () => [{ source: "npm:pkg", installedPath: undefined }],
+    };
+    expect(await createInstalledFilesReader(pm as never)("pkg")).toBeNull();
+    expect(await createInstalledFilesReader(pm as never)("ghost")).toBeNull();
   });
 });
 

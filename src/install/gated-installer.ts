@@ -24,8 +24,10 @@ export type InstallOutcome =
   | { name: string; version: string; status: "installed-mismatch"; message: string }
   | { name: string; version: string; status: "failed"; message: string };
 
-/** npm writes its own lockfile inside each installed package directory. */
-const NPM_MANAGED_FILES = new Set([".package-lock.json"]);
+/** npm writes its own lockfile at the installed package directory root. */
+const NPM_MANAGED_ROOT_FILES = new Set([".package-lock.json"]);
+
+export type InstalledFilesReader = (name: string) => Promise<Map<string, Uint8Array> | null>;
 
 export interface InstalledFileDiff {
   missing: string[];
@@ -42,8 +44,10 @@ export function diffInstalledFiles(
   installed: Map<string, Uint8Array>,
 ): InstalledFileDiff | null {
   const diff: InstalledFileDiff = { missing: [], extra: [], changed: [] };
+  // only the package root is exempted: a lifecycle script writing a deeper
+  // file with the same name must still surface as unexpected (ADR-0002)
   const installedPaths = new Set(
-    [...installed.keys()].filter((p) => !NPM_MANAGED_FILES.has(p.split("/").pop() ?? "")),
+    [...installed.keys()].filter((p) => !NPM_MANAGED_ROOT_FILES.has(p)),
   );
   for (const [path, digest] of Object.entries(scanned)) {
     const bytes = installed.get(path);
@@ -195,9 +199,7 @@ export function renderOutcomes(outcomes: InstallOutcome[]): string {
       o.status === "registry-mismatch" ||
       o.status === "installed-mismatch"
     ) {
-      lines.push(
-        `- ⚠ ${o.name}@${o.version} ${o.status === "installed-mismatch" ? "installed but" : "skipped:"} ${o.message}`,
-      );
+      lines.push(`- ⚠ ${o.name}@${o.version} ${o.message}`);
     } else {
       lines.push(`- ✗ ${o.name}@${o.version} failed: ${o.message}`);
     }
@@ -219,7 +221,7 @@ async function postInstallOutcome(
   if (options.readInstalledFiles) {
     const installed = await options.readInstalledFiles(name).catch(() => null);
     if (!installed) {
-      suffix = "; post-install verification unavailable (installed files not found)";
+      suffix = "post-install verification unavailable (installed files not found)";
     } else {
       const diff = diffInstalledFiles(report.candidateFileDigests, installed);
       if (diff) {
@@ -234,14 +236,14 @@ async function postInstallOutcome(
           name,
           version,
           status: "installed-mismatch",
-          message: `installed bytes differ from the vetted artifact (${drift}) — remove with: pi remove ${installSpec(name, version)} and re-vet`,
+          message: `installed but on-disk bytes differ from the vetted artifact (${drift}) — remove with: pi remove ${installSpec(name, version)} and re-vet`,
         };
       }
-      suffix = "; on-disk files match the vetted artifact";
+      suffix = "verified: on-disk files match the vetted artifact";
     }
   }
   const base = options.pinOnInstall !== true ? `to pin: pi install ${pinCommand}` : undefined;
-  const message = [base, suffix].filter(Boolean).join("");
+  const message = [base, suffix].filter(Boolean).join("; ");
   return message
     ? { name, version, status: "installed", message }
     : { name, version, status: "installed" };

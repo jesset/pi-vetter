@@ -1,6 +1,11 @@
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import type { EvaluationReport } from "../core/types.ts";
-import { type ExecFn, installApproved, renderOutcomes } from "../install/gated-installer.ts";
+import {
+  type ExecFn,
+  type InstalledFilesReader,
+  installApproved,
+  renderOutcomes,
+} from "../install/gated-installer.ts";
 import { NO_PACKAGES_MESSAGE, renderNotes, renderReports } from "../ui/report.ts";
 import { selectForInstall, type UiPort } from "../ui/select.ts";
 import { type ProgressPort, runVet, type VetDeps } from "./vet.ts";
@@ -10,7 +15,7 @@ export interface InstallCommandDeps extends VetDeps {
   pinOnInstall: boolean;
   unpin: (name: string, version: string) => void;
   /** Reads the installed package directory for post-install verification (#48). */
-  readInstalledFiles?: (name: string) => Promise<Map<string, Uint8Array> | null>;
+  readInstalledFiles?: InstalledFilesReader;
 }
 
 export interface VetInstallResult {
