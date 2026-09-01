@@ -64,6 +64,99 @@ describe("e2e: /vet-install gated install flow", () => {
     );
   });
 
+  it("verifies installed bytes against the vetted artifact after install (#48)", async () => {
+    await withHarness(
+      {
+        fixtures: [quietPkg],
+        installed: [
+          {
+            source: "npm:quiet-pkg",
+            name: "quiet-pkg",
+            version: "1.0.0",
+            pinned: false,
+            scope: "user" as const,
+          },
+        ],
+      },
+      async ({ deps }) => {
+        const exec = vi.fn(async (cmd: string, _args?: string[]) => ({
+          stdout:
+            cmd === "npm"
+              ? `${process.env.PI_VETTER_NPM_REGISTRY ?? "https://registry.npmjs.org/"}\n`
+              : "",
+          stderr: "",
+          code: 0,
+        }));
+        const manifest =
+          JSON.stringify({ name: "quiet-pkg", version: "1.1.0", main: "index.js" }, null, 2) + "\n";
+        const onDisk = new Map([
+          ["package.json", new TextEncoder().encode(manifest)],
+          ["index.js", new TextEncoder().encode("module.exports = () => 2;\n")],
+        ]);
+        const result = await runVetInstall(
+          {
+            ...deps,
+            exec,
+            pinOnInstall: false,
+            unpin: () => undefined,
+            readInstalledFiles: () => Promise.resolve(onDisk),
+          },
+          "npm:quiet-pkg",
+          fakeCtx(async () => true),
+        );
+        expect(result.content).toContain("✓ quiet-pkg@1.1.0 installed");
+        expect(result.content).toContain("on-disk files match the vetted artifact");
+      },
+    );
+  });
+
+  it("warns with a removal recommendation when installed bytes diverge (#48)", async () => {
+    await withHarness(
+      {
+        fixtures: [quietPkg],
+        installed: [
+          {
+            source: "npm:quiet-pkg",
+            name: "quiet-pkg",
+            version: "1.0.0",
+            pinned: false,
+            scope: "user" as const,
+          },
+        ],
+      },
+      async ({ deps }) => {
+        const exec = vi.fn(async (cmd: string, _args?: string[]) => ({
+          stdout:
+            cmd === "npm"
+              ? `${process.env.PI_VETTER_NPM_REGISTRY ?? "https://registry.npmjs.org/"}\n`
+              : "",
+          stderr: "",
+          code: 0,
+        }));
+        const manifest =
+          JSON.stringify({ name: "quiet-pkg", version: "1.1.0", main: "index.js" }, null, 2) + "\n";
+        const tamperedDisk = new Map([
+          ["package.json", new TextEncoder().encode(manifest)],
+          ["index.js", new TextEncoder().encode("module.exports = () => 666;\n")],
+        ]);
+        const result = await runVetInstall(
+          {
+            ...deps,
+            exec,
+            pinOnInstall: false,
+            unpin: () => undefined,
+            readInstalledFiles: () => Promise.resolve(tamperedDisk),
+          },
+          "npm:quiet-pkg",
+          fakeCtx(async () => true),
+        );
+        expect(result.content).toContain("⚠ quiet-pkg@1.1.0 installed but");
+        expect(result.content).toContain("changed index.js");
+        expect(result.content).toContain("pi remove npm:quiet-pkg@1.1.0");
+      },
+    );
+  });
+
   it("refuses to install when registry integrity rotated after vetting (TOCTOU)", async () => {
     await withHarness(
       {
@@ -102,7 +195,7 @@ describe("e2e: /vet-install gated install flow", () => {
 
         expect(exec.mock.calls.filter((c) => c[0] === "pi").map((c) => [c[0], c[1]])).toEqual([]);
         expect(unpin).not.toHaveBeenCalled();
-        expect(result.content).toContain("⚠ quiet-pkg@1.1.0 skipped");
+        expect(result.content).toContain("⚠ quiet-pkg@1.1.0 registry integrity changed after vetting");
         expect(result.content).toContain("registry integrity changed after vetting");
         expect(result.content).toContain("re-run /vet");
       },

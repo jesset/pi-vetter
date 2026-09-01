@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { EvaluationReport } from "../core/types.ts";
 import { fetchPackument, npmRegistryBase } from "../npm/registry.ts";
 
@@ -20,7 +21,46 @@ export type InstallOutcome =
       message: string;
     }
   | { name: string; version: string; status: "registry-mismatch"; message: string }
+  | { name: string; version: string; status: "installed-mismatch"; message: string }
   | { name: string; version: string; status: "failed"; message: string };
+
+/** npm writes its own lockfile at the installed package directory root. */
+const NPM_MANAGED_ROOT_FILES = new Set([".package-lock.json"]);
+
+export type InstalledFilesReader = (name: string) => Promise<Map<string, Uint8Array> | null>;
+
+export interface InstalledFileDiff {
+  missing: string[];
+  extra: string[];
+  changed: string[];
+}
+
+/**
+ * Compares the installed package directory against the digests recorded at
+ * scan time (#48). Returns null when the bytes match; lists drift otherwise.
+ */
+export function diffInstalledFiles(
+  scanned: Record<string, string>,
+  installed: Map<string, Uint8Array>,
+): InstalledFileDiff | null {
+  const diff: InstalledFileDiff = { missing: [], extra: [], changed: [] };
+  // only the package root is exempted: a lifecycle script writing a deeper
+  // file with the same name must still surface as unexpected (ADR-0002)
+  const installedPaths = new Set(
+    [...installed.keys()].filter((p) => !NPM_MANAGED_ROOT_FILES.has(p)),
+  );
+  for (const [path, digest] of Object.entries(scanned)) {
+    const bytes = installed.get(path);
+    if (bytes === undefined) {
+      diff.missing.push(path);
+    } else {
+      installedPaths.delete(path);
+      if (createHash("sha256").update(bytes).digest("hex") !== digest) diff.changed.push(path);
+    }
+  }
+  diff.extra = [...installedPaths];
+  return diff.missing.length + diff.extra.length + diff.changed.length > 0 ? diff : null;
+}
 
 const trimSlashes = (url: string): string => url.replace(/\/+$/, "");
 
@@ -58,6 +98,12 @@ export interface InstallOptions {
   unpin?: (name: string, version: string) => void;
   /** Keep the pinned spec written by `pi install` (legacy behaviour). */
   pinOnInstall?: boolean;
+  /**
+   * Reads the installed package directory as path → bytes; null when the
+   * install path cannot be located (#48 post-install verification). Absent
+   * skips verification entirely.
+   */
+  readInstalledFiles?: (name: string) => Promise<Map<string, Uint8Array> | null>;
 }
 
 /**
@@ -121,15 +167,8 @@ export async function installApproved(
       if (result.code === 0) {
         if (options.pinOnInstall !== true && options.unpin) {
           options.unpin(name, version);
-          outcomes.push({
-            name,
-            version,
-            status: "installed",
-            message: `to pin: pi install ${installSpec(name, version)}`,
-          });
-        } else {
-          outcomes.push({ name, version, status: "installed" });
         }
+        outcomes.push(await postInstallOutcome(report, options, installSpec(name, version)));
       } else {
         outcomes.push({
           name,
@@ -155,11 +194,57 @@ export function renderOutcomes(outcomes: InstallOutcome[]): string {
   for (const o of outcomes) {
     if (o.status === "installed") {
       lines.push(`- ✓ ${o.name}@${o.version} installed${o.message ? ` — ${o.message}` : ""}`);
-    } else if (o.status === "integrity-mismatch" || o.status === "registry-mismatch") {
-      lines.push(`- ⚠ ${o.name}@${o.version} skipped: ${o.message}`);
+    } else if (
+      o.status === "integrity-mismatch" ||
+      o.status === "registry-mismatch" ||
+      o.status === "installed-mismatch"
+    ) {
+      lines.push(`- ⚠ ${o.name}@${o.version} ${o.message}`);
     } else {
       lines.push(`- ✗ ${o.name}@${o.version} failed: ${o.message}`);
     }
   }
   return lines.length > 0 ? lines.join("\n") : "Nothing installed.";
+}
+
+/**
+ * #48: detection, not prevention — lifecycle scripts have already run by the
+ * time we can compare bytes; the goal is that a substitution is never silent.
+ */
+async function postInstallOutcome(
+  report: EvaluationReport,
+  options: InstallOptions,
+  pinCommand: string,
+): Promise<InstallOutcome> {
+  const { name, version } = report.candidate;
+  let suffix = "";
+  if (options.readInstalledFiles) {
+    const installed = await options.readInstalledFiles(name).catch(() => null);
+    if (!installed) {
+      suffix = "post-install verification unavailable (installed files not found)";
+    } else {
+      const diff = diffInstalledFiles(report.candidateFileDigests, installed);
+      if (diff) {
+        const drift = [
+          ...diff.missing.map((p) => `missing ${p}`),
+          ...diff.changed.map((p) => `changed ${p}`),
+          ...diff.extra.map((p) => `unexpected ${p}`),
+        ]
+          .slice(0, 5)
+          .join(", ");
+        return {
+          name,
+          version,
+          status: "installed-mismatch",
+          message: `installed but on-disk bytes differ from the vetted artifact (${drift}) — remove with: pi remove ${installSpec(name, version)} and re-vet`,
+        };
+      }
+      suffix = "verified: on-disk files match the vetted artifact";
+    }
+  }
+  const base = options.pinOnInstall !== true ? `to pin: pi install ${pinCommand}` : undefined;
+  const message = [base, suffix].filter(Boolean).join("; ");
+  return message
+    ? { name, version, status: "installed", message }
+    : { name, version, status: "installed" };
 }

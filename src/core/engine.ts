@@ -10,6 +10,7 @@ import type {
   ScannerContext,
   ScanResult,
   SecurityScanner,
+  TarFiles,
   VetterConfig,
 } from "./types.ts";
 
@@ -70,6 +71,14 @@ function ageDays(packument: Artifacts["candidatePackument"], now = Date.now()): 
   if (!created) return null;
   const ms = now - Date.parse(created);
   return Number.isFinite(ms) && ms >= 0 ? Math.floor(ms / 86_400_000) : null;
+}
+
+function fileDigests(files: TarFiles): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [path, bytes] of files) {
+    out[path] = createHash("sha256").update(bytes).digest("hex");
+  }
+  return out;
 }
 
 function hasLifecycleScripts(artifacts: Artifacts, candidate: Candidate): boolean {
@@ -149,5 +158,7 @@ export async function evaluate(
     ),
     hasLifecycleScripts: hasLifecycleScripts(artifacts, target.candidate),
     candidateIntegrity: artifacts.candidateIntegrity,
+    candidateSha256: artifacts.candidateSha256,
+    candidateFileDigests: fileDigests(artifacts.candidateFiles),
   };
 }

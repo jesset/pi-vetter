@@ -6,6 +6,7 @@ import { runVetInstall } from "./commands/vet-install.ts";
 import { createMaintainerSnapshotStore, dataDir, loadConfig, scannerConfigGaps } from "./config.ts";
 import type { SecurityScanner, VetterConfig } from "./core/types.ts";
 import { installSpec } from "./install/gated-installer.ts";
+import { createInstalledFilesReader } from "./install/installed-files.ts";
 import { fetchPackument } from "./npm/registry.ts";
 import { diffScanner } from "./scanners/diff.ts";
 import { createMetadataScanner } from "./scanners/metadata.ts";
@@ -151,6 +152,7 @@ export default function (pi: ExtensionAPI): void {
   // Best-effort: if the re-add step fails after removal, the settings entry
   // is missing (pi update then ignores the package) — the installed version
   // itself is unaffected either way.
+  const readInstalledFiles = createInstalledFilesReader(pm);
   const unpin = (name: string, version: string) => {
     try {
       pm.removeSourceFromSettings(installSpec(name, version));
@@ -173,6 +175,7 @@ export default function (pi: ExtensionAPI): void {
             exec: (cmd, argv, opts) => pi.exec(cmd, argv, opts),
             pinOnInstall: config.install.pinOnInstall,
             unpin,
+            readInstalledFiles,
           },
           args,
           ctx,

@@ -15,6 +15,8 @@ function report(verdict: EvaluationReport["verdict"], name = "pkg"): EvaluationR
     riskScore: 0,
     hasLifecycleScripts: false,
     candidateIntegrity: "sha512-x",
+    candidateSha256: "abcd1234abcd1234",
+    candidateFileDigests: {},
   };
 }
 
@@ -24,6 +26,11 @@ describe("renderReport", () => {
     expect(text).toContain("### pkg 1.0.0 → 2.0.0");
     expect(text).toContain("**Verdict: ASK**");
     expect(text).toContain("✓ `osv:clean` — clean");
+  });
+
+  it("shows the verified artifact sha256 (#47)", () => {
+    const text = renderReport(report("ASK"));
+    expect(text).toContain("Artifact sha256: `abcd1234abcd1234`");
   });
 
   it("scopes the ALLOW verdict wording (#42)", () => {

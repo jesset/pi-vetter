@@ -29,7 +29,7 @@ pi install npm:pi-vetter
 | `/vet` | Read-only evaluation. No arguments = all installed packages with available updates; or pass specs: `/vet npm:foo npm:bar@1.2.3` |
 | `/vet-install` | Same evaluation, then an interactive multi-select (TUI) or grouped confirms (non-TUI) and installs only what you approve |
 
-Approved packages are installed via `pi install npm:<pkg>@<version>` — the exact vetted version, guarded by an integrity re-check before every install (TOCTOU). The install registry (`npm config get registry`, what pi/npm actually resolves through) is compared against the vetting registry (`PI_VETTER_NPM_REGISTRY`); on divergence the install is skipped with guidance instead of proceeding on an unverifiable chain. By default the settings entry is then restored to an unpinned spec (ADR-0003, revised): deciding to keep a package out of `pi update --extensions` is yours, not the evaluator's — the install result shows the exact pin command if you want it (`install.pinOnInstall: true` restores the legacy always-pin behaviour). Pinned packages are still evaluated on every `/vet` and marked as such in the report.
+Approved packages are installed via `pi install npm:<pkg>@<version>` — the exact vetted version, guarded by an integrity re-check before every install (TOCTOU). The install registry (`npm config get registry`, what pi/npm actually resolves through) is compared against the vetting registry (`PI_VETTER_NPM_REGISTRY`); on divergence the install is skipped with guidance instead of proceeding on an unverifiable chain. After a successful install, the on-disk package files are compared against the scanned tarball's per-file digests: a match is noted as verified, a divergence surfaces a warning with the removal command (detection, not prevention — lifecycle scripts have already run). By default the settings entry is then restored to an unpinned spec (ADR-0003, revised): deciding to keep a package out of `pi update --extensions` is yours, not the evaluator's — the install result shows the exact pin command if you want it (`install.pinOnInstall: true` restores the legacy always-pin behaviour). Pinned packages are still evaluated on every `/vet` and marked as such in the report.
 
 ### Verdict model
 
@@ -37,7 +37,7 @@ Approved packages are installed via `pi install npm:<pkg>@<version>` — the exa
 - **ASK** — a rule fired (e.g. new lifecycle script, new outbound endpoint, maintainer change) or evidence is incomplete
 - **DENY** — hard evidence of malice/contradiction (OpenSSF malicious-package advisory, provenance conflict, VirusTotal detections)
 
-Fail-closed: if any **enabled** scanner fails or times out, the verdict is capped at ASK — never a silent ALLOW (ADR-0002). An earned DENY is never downgraded. Verdicts are rule-driven; the 0–100 risk score is display-only (ADR-0001).
+Fail-closed: if any **enabled** scanner fails or times out, the verdict is capped at ASK — never a silent ALLOW (ADR-0002). An earned DENY is never downgraded. Verdicts are rule-driven; the 0–100 risk score is display-only (ADR-0001). Every report also anchors the exact artifact it assessed by showing the verified tarball's sha256.
 
 ### Scanners (Phase 1)
 

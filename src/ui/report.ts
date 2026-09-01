@@ -24,6 +24,7 @@ export function renderReport(report: EvaluationReport): string {
     : report.verdict;
   lines.push(`### ${headline(report)}`);
   lines.push(`**Verdict: ${verdictLabel}** · Risk score ${report.riskScore}/100 (display only)`);
+  lines.push(`Artifact sha256: \`${report.candidateSha256}\``);
 
   if (report.findings.length > 0) {
     lines.push("");

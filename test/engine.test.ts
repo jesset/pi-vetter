@@ -136,6 +136,21 @@ describe("evaluate", () => {
     expect(report.hasLifecycleScripts).toBe(true);
   });
 
+  it("carries the candidate artifact sha256 into the report (#47)", async () => {
+    const report = await evaluate(makeDeps({ scanners: [] }), { candidate, baseline: null });
+    expect(report.candidateSha256).toBe("abc123");
+  });
+
+  it("carries per-file digests of the candidate tarball (#48)", async () => {
+    const files = new Map([["index.js", new TextEncoder().encode("x = 1;")]]);
+    const deps = makeDeps({
+      buildArtifacts: () => Promise.resolve({ ...makeArtifacts(), candidateFiles: files }),
+    });
+    const report = await evaluate(deps, { candidate, baseline: null });
+    expect(Object.keys(report.candidateFileDigests)).toEqual(["index.js"]);
+    expect(report.candidateFileDigests["index.js"]).toMatch(/^[0-9a-f]{64}$/);
+  });
+
   it("uses cache and skips the scanner on hit", async () => {
     const osv = makeScanner("osv", {
       scanner: "osv",

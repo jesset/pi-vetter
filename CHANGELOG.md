@@ -11,14 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - MIT `LICENSE` file at the repo root (the license was declared in package.json but the text was missing); README badge row (npm version / downloads / license / node) in both READMEs; GitHub topics expanded for discoverability
 
-### Added
-
 - Dynamic code execution escalates to ASK by default: eval/new Function/vm-family hits and dynamic module resolution (concatenated, base64-decoded, or variable require/import) map to a new `dynamic-code-execution` rule — a hard signal in the install scenario, and behavior-change-gated (new hits fail, pre-existing hits stay info) in updates; disable via config for legitimate minified bundles (#40)
 - Transitive dependency findings follow a severity ladder: credential/obfuscation/prompt-injection/dynamic-code hits inside scanned dependency tarballs escalate to a new `transitive-risk` ASK rule attributed per dependency; ordinary Node.js API usage stays informational (#41)
 - Policy visibility: rules disabled via config are disclosed in the report Notes (mirroring the scanner-gap disclosure), and ALLOW reports carry the qualifier that no enabled rule detected a known risk (#42)
 - `/vet-install` fails closed when the install registry (`npm config get registry`) diverges from the vetting registry (`PI_VETTER_NPM_REGISTRY`): packages are skipped with guidance instead of proceeding on an unverifiable chain (#43)
 - Configurable `provenance.required` policy: missing npm attestations stay informational by default, escalate to a `provenance-missing` ASK rule when enabled (#44)
 - Adversarial E2E suite fixing the audit's evasion shapes (concatenated/base64 require, dynamic import, credential exfiltration, transitive downgrade) as regression guards (#45)
+- Every report anchors the exact artifact it assessed by showing the verified tarball's sha256 (reusing the VirusTotal lookup digest) (#47)
+- Post-install verification: `/vet-install` compares the installed package's on-disk files against the scanned tarball's per-file digests — a match is noted as verified, divergence surfaces a warning with the removal command, and an unreadable install path degrades to "verification unavailable" without failing the install (#48)
 
 ### Fixed
 

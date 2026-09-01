@@ -1,9 +1,17 @@
 import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { buildArtifacts, parseArgs, policyNotes, resolveTargets } from "../src/commands/vet.ts";
 import { defaultConfig } from "../src/config.ts";
 import type { Packument } from "../src/core/types.ts";
-import { installApproved, installSpec } from "../src/install/gated-installer.ts";
+import {
+  diffInstalledFiles,
+  installApproved,
+  installSpec,
+} from "../src/install/gated-installer.ts";
+import { createInstalledFilesReader } from "../src/install/installed-files.ts";
 import type { InstalledPackage } from "../src/settings.ts";
 import { makeTarball } from "./e2e/helpers/fixtures.ts";
 
@@ -179,6 +187,8 @@ describe("installApproved", () => {
     riskScore: 0,
     hasLifecycleScripts: false,
     candidateIntegrity: integrity,
+    candidateSha256: "0".repeat(64),
+    candidateFileDigests: {},
   });
 
   function mockRegistry(integrityByPkg: Record<string, string>) {
@@ -304,6 +314,8 @@ describe("installApproved registry guard (#43)", () => {
     riskScore: 0,
     hasLifecycleScripts: false,
     candidateIntegrity: "sha512-good",
+    candidateSha256: "0".repeat(64),
+    candidateFileDigests: {},
   });
   const registryPackument = vi.fn(() =>
     Promise.resolve({
@@ -386,6 +398,167 @@ describe("installApproved registry guard (#43)", () => {
     vi.unstubAllGlobals();
     expect(outcomes[0]).toMatchObject({ status: "installed" });
     expect(exec).toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+  });
+});
+
+describe("diffInstalledFiles (#48)", () => {
+  const sha = (b: string) => createHash("sha256").update(b).digest("hex");
+  const files = (entries: Array<[string, string]>) =>
+    new Map(entries.map(([p, c]) => [p, new TextEncoder().encode(c)]));
+
+  it("returns null on a byte-for-byte match", () => {
+    expect(diffInstalledFiles({ "a.js": sha("1") }, files([["a.js", "1"]]))).toBeNull();
+  });
+
+  it("ignores npm's root lockfile but flags deeper same-name files", () => {
+    expect(
+      diffInstalledFiles(
+        { "a.js": sha("1") },
+        files([
+          ["a.js", "1"],
+          [".package-lock.json", "{}"],
+        ]),
+      ),
+    ).toBeNull();
+    const diff = diffInstalledFiles(
+      { "a.js": sha("1") },
+      files([
+        ["a.js", "1"],
+        ["sub/.package-lock.json", "{}"],
+      ]),
+    );
+    expect(diff?.extra).toEqual(["sub/.package-lock.json"]);
+  });
+
+  it("reports missing, changed and unexpected files", () => {
+    const diff = diffInstalledFiles(
+      { "a.js": sha("1"), "gone.js": sha("2") },
+      files([
+        ["a.js", "tampered"],
+        ["extra.js", "x"],
+      ]),
+    );
+    expect(diff).toMatchObject({
+      missing: ["gone.js"],
+      changed: ["a.js"],
+      extra: ["extra.js"],
+    });
+  });
+});
+
+describe("installApproved post-install verification (#48)", () => {
+  const reportWith = (digests: Record<string, string>) => ({
+    candidate: { name: "pkg", version: "2.0.0", scenario: "update" as const },
+    baseline: { name: "pkg", version: "0.0.1" },
+    verdict: "ALLOW" as const,
+    capped: false,
+    findings: [],
+    evidences: [],
+    riskScore: 0,
+    hasLifecycleScripts: false,
+    candidateIntegrity: "sha512-good",
+    candidateSha256: "0".repeat(64),
+    candidateFileDigests: digests,
+  });
+  const execOk = vi.fn((cmd: string, _args?: string[]) =>
+    Promise.resolve(
+      cmd === "npm"
+        ? { stdout: "https://registry.npmjs.org/\n", stderr: "", code: 0 }
+        : { stdout: "", stderr: "", code: 0 },
+    ),
+  );
+  const registry = () => {
+    const fetchPackument = vi.fn((_name: string) =>
+      Promise.resolve({
+        name: "pkg",
+        "dist-tags": {},
+        versions: {
+          "2.0.0": { version: "2.0.0", dist: { integrity: "sha512-good", tarball: "x" } },
+        },
+        time: {},
+        maintainers: [],
+      }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => fetchPackument("pkg").then((p) => new Response(JSON.stringify(p)))),
+    );
+  };
+
+  it("marks the outcome verified when on-disk bytes match", async () => {
+    registry();
+    const content = "module.exports = () => 42;\n";
+    const read = vi.fn(() =>
+      Promise.resolve(new Map([["index.js", new TextEncoder().encode(content)]])),
+    );
+    const outcomes = await installApproved(
+      execOk as never,
+      [reportWith({ "index.js": createHash("sha256").update(content).digest("hex") })],
+      {
+        readInstalledFiles: read as never,
+      },
+    );
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "installed" });
+    expect(outcomes[0]?.message).toContain("verified: on-disk files match the vetted artifact");
+  });
+
+  it("warns with a removal recommendation on byte divergence", async () => {
+    registry();
+    const read = vi.fn(() =>
+      Promise.resolve(new Map([["index.js", new TextEncoder().encode("tampered")]])),
+    );
+    const outcomes = await installApproved(
+      execOk as never,
+      [reportWith({ "index.js": createHash("sha256").update("clean").digest("hex") })],
+      { readInstalledFiles: read as never },
+    );
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "installed-mismatch" });
+    expect(outcomes[0]?.message).toContain("changed index.js");
+    expect(outcomes[0]?.message).toContain("pi remove npm:pkg@2.0.0");
+  });
+
+  it("notes unavailable verification without failing the install", async () => {
+    registry();
+    const read = vi.fn(() => Promise.resolve(null));
+    const outcomes = await installApproved(execOk as never, [reportWith({})], {
+      readInstalledFiles: read as never,
+    });
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "installed" });
+    expect(outcomes[0]?.message).toContain("post-install verification unavailable");
+  });
+});
+
+describe("createInstalledFilesReader (#48)", () => {
+  it("matches pinned and unpinned source forms and reads the tree", async () => {
+    const root = mkdtempSync(join(tmpdir(), "pi-vetter-inst-"));
+    const pkgDir = join(root, "pkg");
+    mkdirSync(join(pkgDir, "lib"), { recursive: true });
+    writeFileSync(join(pkgDir, "index.js"), "exports = 1;");
+    writeFileSync(join(pkgDir, "lib", "a.js"), "exports = 2;");
+    const pm = {
+      listConfiguredPackages: () => [
+        { source: "npm:other-pkg@1.0.0", installedPath: join(root, "other") },
+        { source: "npm:pkg@2.0.0", installedPath: pkgDir },
+      ],
+    };
+    const read = createInstalledFilesReader(pm as never);
+    const files = await read("pkg");
+    expect(files).not.toBeNull();
+    expect([...(files?.keys() ?? [])].sort()).toEqual(["index.js", "lib/a.js"]);
+    expect(new TextDecoder().decode(files?.get("index.js") ?? new Uint8Array())).toBe(
+      "exports = 1;",
+    );
+  });
+
+  it("returns null when no configured source matches or the path is missing", async () => {
+    const pm = {
+      listConfiguredPackages: () => [{ source: "npm:pkg", installedPath: undefined }],
+    };
+    expect(await createInstalledFilesReader(pm as never)("pkg")).toBeNull();
+    expect(await createInstalledFilesReader(pm as never)("ghost")).toBeNull();
   });
 });
 

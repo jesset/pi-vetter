@@ -140,6 +140,10 @@ export interface EvaluationReport {
   hasLifecycleScripts: boolean;
   /** Registry dist.integrity recorded at scan time; re-checked before install (TOCTOU). */
   candidateIntegrity: string;
+  /** sha256 of the verified candidate tarball (VT lookup key; report anchor). */
+  candidateSha256: string;
+  /** Per-file sha256 digests of the verified tarball (post-install comparison, #48). */
+  candidateFileDigests: Record<string, string>;
 }
 
 export interface ScannerConfig {
