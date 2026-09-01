@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { parseArgs, resolveTargets } from "../src/commands/vet.ts";
+import { buildArtifacts, parseArgs, resolveTargets } from "../src/commands/vet.ts";
 import { defaultConfig } from "../src/config.ts";
 import type { Packument } from "../src/core/types.ts";
 import { installApproved, installSpec } from "../src/install/gated-installer.ts";
 import type { InstalledPackage } from "../src/settings.ts";
+import { makeTarball } from "./e2e/helpers/fixtures.ts";
 
 describe("parseArgs", () => {
   it("accepts empty args (installed-by-default)", () => {
@@ -262,5 +264,75 @@ describe("installApproved", () => {
 describe("installSpec", () => {
   it("formats scoped and plain names", () => {
     expect(installSpec("@scope/pkg", "1.0.0")).toBe("npm:@scope/pkg@1.0.0");
+  });
+});
+
+describe("buildArtifacts", () => {
+  const integ = (b: Uint8Array) => `sha512-${createHash("sha512").update(b).digest("base64")}`;
+
+  async function fixture(tamperBaseline: boolean) {
+    const candidate = await makeTarball([["index.js", "module.exports = () => 2;\n"]]);
+    const intendedBase = await makeTarball([["index.js", "module.exports = () => 1;\n"]]);
+    const servedBase = tamperBaseline
+      ? await makeTarball([["evil.js", "// tampered\n"]])
+      : intendedBase;
+    const pk: Packument = {
+      name: "pkg",
+      "dist-tags": { latest: "2.0.0" },
+      versions: {
+        "2.0.0": {
+          version: "2.0.0",
+          dist: { integrity: integ(candidate), tarball: "https://r/pkg-2.0.0.tgz" },
+        },
+        "1.0.0": {
+          version: "1.0.0",
+          dist: { integrity: integ(intendedBase), tarball: "https://r/pkg-1.0.0.tgz" },
+        },
+      },
+      time: { created: "2020-01-01T00:00:00.000Z" },
+      maintainers: [],
+    };
+    const served = new Map<string, Uint8Array>([
+      ["https://r/pkg-2.0.0.tgz", candidate],
+      ["https://r/pkg-1.0.0.tgz", servedBase],
+    ]);
+    const fetcher = vi.fn(() => Promise.resolve(pk));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string | URL | Request) =>
+        Promise.resolve(
+          new Response(served.get(String(input instanceof Request ? input.url : input)) ?? "{}"),
+        ),
+      ),
+    );
+    return fetcher;
+  }
+
+  it("rejects a baseline tarball that does not match dist.integrity", async () => {
+    const fetcher = await fixture(true);
+    await expect(
+      buildArtifacts(
+        {
+          candidate: { name: "pkg", version: "2.0.0", scenario: "update" },
+          baseline: { name: "pkg", version: "1.0.0" },
+        },
+        fetcher as never,
+      ),
+    ).rejects.toThrow(/integrity mismatch downloading baseline pkg@1.0.0/);
+    vi.unstubAllGlobals();
+  });
+
+  it("parses a baseline whose bytes match dist.integrity", async () => {
+    const fetcher = await fixture(false);
+    const artifacts = await buildArtifacts(
+      {
+        candidate: { name: "pkg", version: "2.0.0", scenario: "update" },
+        baseline: { name: "pkg", version: "1.0.0" },
+      },
+      fetcher as never,
+    );
+    vi.unstubAllGlobals();
+    expect(artifacts.baselineFiles).not.toBeNull();
+    expect([...(artifacts.baselineFiles?.keys() ?? [])]).toContain("index.js");
   });
 });

@@ -78,6 +78,15 @@ export async function buildArtifacts(
     const baselineMeta = packument.versions[baseline.version];
     if (baselineMeta) {
       const bytes = await downloadTarball(baselineMeta.dist.tarball, signal());
+      const baselineIntegrity = baselineMeta.dist.integrity;
+      if (!baselineIntegrity) {
+        throw new Error(`no dist.integrity for baseline ${baseline.name}@${baseline.version}`);
+      }
+      if (!verifyIntegrity(bytes, baselineIntegrity)) {
+        throw new Error(
+          `integrity mismatch downloading baseline ${baseline.name}@${baseline.version}`,
+        );
+      }
       baselineFiles = await parseTarball(bytes);
     }
   }
