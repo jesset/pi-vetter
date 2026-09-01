@@ -9,6 +9,8 @@ export interface InstallCommandDeps extends VetDeps {
   exec: ExecFn;
   pinOnInstall: boolean;
   unpin: (name: string, version: string) => void;
+  /** Reads the installed package directory for post-install verification (#48). */
+  readInstalledFiles?: (name: string) => Promise<Map<string, Uint8Array> | null>;
 }
 
 export interface VetInstallResult {
@@ -49,6 +51,7 @@ export async function runVetInstall(
   const outcomes = await installApproved(deps.exec, chosen, {
     unpin: deps.unpin,
     pinOnInstall: deps.pinOnInstall,
+    ...(deps.readInstalledFiles ? { readInstalledFiles: deps.readInstalledFiles } : {}),
   });
   return {
     content: [header, `**Install results**\n${renderOutcomes(outcomes)}`]

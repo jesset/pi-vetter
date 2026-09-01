@@ -29,7 +29,7 @@ pi install npm:pi-vetter
 | `/vet` | 只读评估。不带参数 = 检查全部已装扩展的可用更新；也可指定：`/vet npm:foo npm:bar@1.2.3` |
 | `/vet-install` | 同样评估，然后交互多选（TUI 复选框；非 TUI 模式退化为分组确认），只安装你批准的包 |
 
-批准的包通过 `pi install npm:<pkg>@<version>` 安装——装的就是评估过的那个版本，且每次安装前重新比对 registry 完整性（TOCTOU 防护）。安装前会对比安装 registry（`npm config get registry`，即 pi/npm 实际解析所经）与审查 registry（`PI_VETTER_NPM_REGISTRY`）；二者不一致时跳过安装并给出指引，而非在无法验证的链路上继续。默认在安装成功后把 settings 条目还原为非 pin spec（ADR-0003 修订版）："让这个包从此退出更新通道"是你的决定而非评估器的副作用——安装结果会给出精确的 pin 命令供你自行执行（`install.pinOnInstall: true` 恢复旧的总是 pin 行为）。pinned 包在每次 `/vet` 中照常评估并在报告中标注。
+批准的包通过 `pi install npm:<pkg>@<version>` 安装——装的就是评估过的那个版本，且每次安装前重新比对 registry 完整性（TOCTOU 防护）。安装前会对比安装 registry（`npm config get registry`，即 pi/npm 实际解析所经）与审查 registry（`PI_VETTER_NPM_REGISTRY`）；二者不一致时跳过安装并给出指引，而非在无法验证的链路上继续。安装成功后还会将落盘的包文件与扫描 tarball 的逐文件摘要比对：一致则标注 verified，出现差异则给出带移除命令的警告（属检测而非预防——lifecycle 脚本此刻已经执行）。默认在安装成功后把 settings 条目还原为非 pin spec（ADR-0003 修订版）："让这个包从此退出更新通道"是你的决定而非评估器的副作用——安装结果会给出精确的 pin 命令供你自行执行（`install.pinOnInstall: true` 恢复旧的总是 pin 行为）。pinned 包在每次 `/vet` 中照常评估并在报告中标注。
 
 ### 判定模型
 

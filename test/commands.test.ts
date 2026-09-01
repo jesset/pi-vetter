@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { buildArtifacts, parseArgs, policyNotes, resolveTargets } from "../src/commands/vet.ts";
 import { defaultConfig } from "../src/config.ts";
 import type { Packument } from "../src/core/types.ts";
-import { installApproved, installSpec } from "../src/install/gated-installer.ts";
+import {
+  diffInstalledFiles,
+  installApproved,
+  installSpec,
+} from "../src/install/gated-installer.ts";
 import type { InstalledPackage } from "../src/settings.ts";
 import { makeTarball } from "./e2e/helpers/fixtures.ts";
 
@@ -180,6 +184,7 @@ describe("installApproved", () => {
     hasLifecycleScripts: false,
     candidateIntegrity: integrity,
     candidateSha256: "0".repeat(64),
+    candidateFileDigests: {},
   });
 
   function mockRegistry(integrityByPkg: Record<string, string>) {
@@ -306,6 +311,7 @@ describe("installApproved registry guard (#43)", () => {
     hasLifecycleScripts: false,
     candidateIntegrity: "sha512-good",
     candidateSha256: "0".repeat(64),
+    candidateFileDigests: {},
   });
   const registryPackument = vi.fn(() =>
     Promise.resolve({
@@ -388,6 +394,128 @@ describe("installApproved registry guard (#43)", () => {
     vi.unstubAllGlobals();
     expect(outcomes[0]).toMatchObject({ status: "installed" });
     expect(exec).toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+  });
+});
+
+describe("diffInstalledFiles (#48)", () => {
+  const sha = (b: string) => createHash("sha256").update(b).digest("hex");
+  const files = (entries: Array<[string, string]>) =>
+    new Map(entries.map(([p, c]) => [p, new TextEncoder().encode(c)]));
+
+  it("returns null on a byte-for-byte match", () => {
+    expect(diffInstalledFiles({ "a.js": sha("1") }, files([["a.js", "1"]]))).toBeNull();
+  });
+
+  it("ignores npm-managed files inside the package directory", () => {
+    expect(
+      diffInstalledFiles(
+        { "a.js": sha("1") },
+        files([
+          ["a.js", "1"],
+          [".package-lock.json", "{}"],
+        ]),
+      ),
+    ).toBeNull();
+  });
+
+  it("reports missing, changed and unexpected files", () => {
+    const diff = diffInstalledFiles(
+      { "a.js": sha("1"), "gone.js": sha("2") },
+      files([
+        ["a.js", "tampered"],
+        ["extra.js", "x"],
+      ]),
+    );
+    expect(diff).toMatchObject({
+      missing: ["gone.js"],
+      changed: ["a.js"],
+      extra: ["extra.js"],
+    });
+  });
+});
+
+describe("installApproved post-install verification (#48)", () => {
+  const reportWith = (digests: Record<string, string>) => ({
+    candidate: { name: "pkg", version: "2.0.0", scenario: "update" as const },
+    baseline: { name: "pkg", version: "0.0.1" },
+    verdict: "ALLOW" as const,
+    capped: false,
+    findings: [],
+    evidences: [],
+    riskScore: 0,
+    hasLifecycleScripts: false,
+    candidateIntegrity: "sha512-good",
+    candidateSha256: "0".repeat(64),
+    candidateFileDigests: digests,
+  });
+  const execOk = vi.fn((cmd: string, _args?: string[]) =>
+    Promise.resolve(
+      cmd === "npm"
+        ? { stdout: "https://registry.npmjs.org/\n", stderr: "", code: 0 }
+        : { stdout: "", stderr: "", code: 0 },
+    ),
+  );
+  const registry = () => {
+    const fetchPackument = vi.fn((_name: string) =>
+      Promise.resolve({
+        name: "pkg",
+        "dist-tags": {},
+        versions: {
+          "2.0.0": { version: "2.0.0", dist: { integrity: "sha512-good", tarball: "x" } },
+        },
+        time: {},
+        maintainers: [],
+      }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => fetchPackument("pkg").then((p) => new Response(JSON.stringify(p)))),
+    );
+  };
+
+  it("marks the outcome verified when on-disk bytes match", async () => {
+    registry();
+    const content = "module.exports = () => 42;\n";
+    const read = vi.fn(() =>
+      Promise.resolve(new Map([["index.js", new TextEncoder().encode(content)]])),
+    );
+    const outcomes = await installApproved(
+      execOk as never,
+      [reportWith({ "index.js": createHash("sha256").update(content).digest("hex") })],
+      {
+        readInstalledFiles: read as never,
+      },
+    );
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "installed" });
+    expect(outcomes[0]?.message).toContain("on-disk files match the vetted artifact");
+  });
+
+  it("warns with a removal recommendation on byte divergence", async () => {
+    registry();
+    const read = vi.fn(() =>
+      Promise.resolve(new Map([["index.js", new TextEncoder().encode("tampered")]])),
+    );
+    const outcomes = await installApproved(
+      execOk as never,
+      [reportWith({ "index.js": createHash("sha256").update("clean").digest("hex") })],
+      { readInstalledFiles: read as never },
+    );
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "installed-mismatch" });
+    expect(outcomes[0]?.message).toContain("changed index.js");
+    expect(outcomes[0]?.message).toContain("pi remove npm:pkg@2.0.0");
+  });
+
+  it("notes unavailable verification without failing the install", async () => {
+    registry();
+    const read = vi.fn(() => Promise.resolve(null));
+    const outcomes = await installApproved(execOk as never, [reportWith({})], {
+      readInstalledFiles: read as never,
+    });
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "installed" });
+    expect(outcomes[0]?.message).toContain("post-install verification unavailable");
   });
 });
 

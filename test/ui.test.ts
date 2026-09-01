@@ -16,6 +16,7 @@ function report(verdict: EvaluationReport["verdict"], name = "pkg"): EvaluationR
     hasLifecycleScripts: false,
     candidateIntegrity: "sha512-x",
     candidateSha256: "abcd1234abcd1234",
+    candidateFileDigests: {},
   };
 }
 
