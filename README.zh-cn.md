@@ -37,7 +37,7 @@ pi install npm:pi-vetter
 - **ASK** —— 某条规则触发（如新增 lifecycle 脚本、新增外联端点、维护者变更），或证据不完整
 - **DENY** —— 明确的恶意/矛盾证据（OpenSSF 恶意包通告、provenance 矛盾、VirusTotal 检出）
 
-fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 ASK——绝不静默 ALLOW（ADR-0002）。已成立的 DENY 永不被降级。判定由规则驱动；0–100 的风险分仅作展示（ADR-0001）。
+fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 ASK——绝不静默 ALLOW（ADR-0002）。已成立的 DENY 永不被降级。判定由规则驱动；0–100 的风险分仅作展示（ADR-0001）。每份报告还会展示已验证 tarball 的 sha256，锚定其评估的确切 artifact。
 
 ### 扫描器（Phase 1）
 

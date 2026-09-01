@@ -136,6 +136,11 @@ describe("evaluate", () => {
     expect(report.hasLifecycleScripts).toBe(true);
   });
 
+  it("carries the candidate artifact sha256 into the report (#47)", async () => {
+    const report = await evaluate(makeDeps({ scanners: [] }), { candidate, baseline: null });
+    expect(report.candidateSha256).toBe("abc123");
+  });
+
   it("uses cache and skips the scanner on hit", async () => {
     const osv = makeScanner("osv", {
       scanner: "osv",

@@ -149,5 +149,6 @@ export async function evaluate(
     ),
     hasLifecycleScripts: hasLifecycleScripts(artifacts, target.candidate),
     candidateIntegrity: artifacts.candidateIntegrity,
+    candidateSha256: artifacts.candidateSha256,
   };
 }

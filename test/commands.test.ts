@@ -179,6 +179,7 @@ describe("installApproved", () => {
     riskScore: 0,
     hasLifecycleScripts: false,
     candidateIntegrity: integrity,
+    candidateSha256: "0".repeat(64),
   });
 
   function mockRegistry(integrityByPkg: Record<string, string>) {
@@ -304,6 +305,7 @@ describe("installApproved registry guard (#43)", () => {
     riskScore: 0,
     hasLifecycleScripts: false,
     candidateIntegrity: "sha512-good",
+    candidateSha256: "0".repeat(64),
   });
   const registryPackument = vi.fn(() =>
     Promise.resolve({
