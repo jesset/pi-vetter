@@ -69,6 +69,7 @@ function ctx(opts?: {
           : opts.baselineFiles,
       candidatePackument: opts?.packument ?? packument(),
       candidateIntegrity: "sha512-x",
+      baselineIntegrity: null,
       candidateTarball: new Uint8Array(0),
       dependencyFiles: new Map(),
       dependencySkipped: 0,
@@ -245,6 +246,48 @@ describe("osv scanner", () => {
     expect(ev?.status).toBe("fail");
     expect(ev?.detail).toContain("axios@1.9.7");
     expect(ev?.detail).toContain("GHSA-aaaa-bbbb-cccc");
+  });
+
+  it("keeps composite ranges at the lower bound instead of querying dist-tags.latest", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    const fetcher = vi.fn();
+    await createOsvScanner({ fetcher }).scan(
+      ctx({ packument: packument({ deps: { "2.0.0": { axios: ">=1.5.0 <2.0.0" } } }) }),
+    );
+    vi.unstubAllGlobals();
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(queriedBody(fetchMock).queries[1]).toEqual({
+      package: { name: "axios", ecosystem: "npm" },
+      version: "1.5.0",
+    });
+  });
+
+  it("rejects an out-of-range dist-tags.latest fallback", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    await createOsvScanner({
+      fetcher: () => Promise.resolve(depPackument("axios", ["1.0.0"])),
+    }).scan(ctx({ packument: packument({ deps: { "2.0.0": { axios: "^1.2.0" } } }) }));
+    vi.unstubAllGlobals();
+    expect(queriedBody(fetchMock).queries[1]).toEqual({
+      package: { name: "axios", ecosystem: "npm" },
+      version: "1.2.0",
+    });
+  });
+
+  it("discloses lower-bound fallbacks as informational evidence", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await createOsvScanner({
+      fetcher: () => Promise.reject(new Error("registry down")),
+    }).scan(ctx({ packument: packument({ deps: { "2.0.0": { axios: "^1.2.0" } } }) }));
+    vi.unstubAllGlobals();
+    const fallback = result.evidences.find((e) => e.key === "osv:dep-resolution-fallback");
+    expect(fallback?.status).toBe("info");
+    expect(fallback?.detail).toContain("1 of 1");
+    // the clean verdict is still produced alongside the disclosure
+    expect(result.evidences.find((e) => e.key === "osv:clean")?.status).toBe("pass");
   });
 
   it("returns timeout status on abort", async () => {

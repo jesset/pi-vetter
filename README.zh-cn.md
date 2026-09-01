@@ -72,7 +72,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 }
 ```
 
-扫描结果按 `扫描器 + 包@版本 + 基线版本 + artifact 摘要` 缓存在 `~/.pi/agent/pi-vetter/cache/`；VirusTotal 哈希查询永久缓存。缓存可整体关闭。
+扫描结果按 `扫描器 + 包@版本 + 基线版本 + artifact 摘要`（candidate 与 baseline 两侧）缓存在 `~/.pi/agent/pi-vetter/cache/`；VirusTotal 哈希查询永久缓存。缓存可整体关闭。
 
 ### 环境变量
 

@@ -39,6 +39,7 @@ function makeArtifacts(opts?: {
     baselineFiles: null,
     candidatePackument: makePackument(opts),
     candidateIntegrity: "sha512-abc",
+    baselineIntegrity: null,
     candidateTarball: new Uint8Array(0),
     dependencyFiles: new Map(),
     dependencySkipped: 0,
@@ -210,6 +211,46 @@ describe("evaluate", () => {
       await evaluate(deps, { candidate, baseline: null });
       const keys = keysOf(cache);
       expect(keys[0]).not.toBe(keys[1]);
+    });
+
+    it("separates results when the baseline artifact integrity differs", async () => {
+      const { cache, osv } = run();
+      const first = makeArtifacts();
+      const second: Artifacts = {
+        ...makeArtifacts(),
+        baselineFiles: new Map(),
+        baselineIntegrity: "sha512-b2",
+      };
+      first.baselineIntegrity = "sha512-b1";
+      const artifacts = [first, second];
+      let next = 0;
+      const deps = makeDeps({
+        scanners: [osv],
+        cache,
+        buildArtifacts: () => Promise.resolve(artifacts[next++] as Artifacts),
+      });
+      const baseline = { name: "pkg", version: "1.0.0" };
+      await evaluate(deps, { candidate, baseline });
+      await evaluate(deps, { candidate, baseline });
+      const keys = keysOf(cache);
+      expect(keys[0]).not.toBe(keys[1]);
+    });
+
+    it("misses old-format cache entries (bare name@version)", async () => {
+      const stale: ScanResult = {
+        scanner: "osv",
+        status: "ok",
+        evidences: [ev("osv:clean", "pass")],
+      };
+      const cache: CacheStore = {
+        get: vi.fn((_scanner: string, key: string) =>
+          Promise.resolve(key === "pkg@2.0.0" ? stale : null),
+        ),
+        set: vi.fn(() => Promise.resolve()),
+      };
+      const osv = makeScanner("osv", { scanner: "osv", status: "ok", evidences: [] });
+      await evaluate(makeDeps({ scanners: [osv], cache }), { candidate, baseline: null });
+      expect(osv.scan).toHaveBeenCalled();
     });
 
     it("reuses the same key for an identical target", async () => {

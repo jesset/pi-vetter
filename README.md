@@ -72,7 +72,7 @@ Rules map evidence to verdicts and can be toggled individually in the config fil
 }
 ```
 
-Scan results are cached per `scanner + pkg@version + baseline + artifact digest` under `~/.pi/agent/pi-vetter/cache/`; VirusTotal hash lookups are cached forever. Caching can be disabled entirely.
+Scan results are cached per `scanner + pkg@version + baseline + artifact digests` under `~/.pi/agent/pi-vetter/cache/`; VirusTotal hash lookups are cached forever. Caching can be disabled entirely.
 
 ### Environment variables
 

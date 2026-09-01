@@ -19,6 +19,7 @@ function ctx(name = "pkg", version = "2.0.0"): ScannerContext {
         maintainers: [],
       },
       candidateIntegrity: "sha512-x",
+      baselineIntegrity: null,
       candidateTarball: new Uint8Array(0),
       dependencyFiles: new Map(),
       dependencySkipped: 0,

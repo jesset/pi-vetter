@@ -25,6 +25,7 @@ function ctx(): ScannerContext {
         maintainers: [],
       },
       candidateIntegrity: "sha512-x",
+      baselineIntegrity: null,
       candidateTarball: new TextEncoder().encode("fake-tarball"),
       dependencyFiles: new Map(),
       dependencySkipped: 0,

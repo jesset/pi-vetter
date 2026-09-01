@@ -81,7 +81,9 @@ export async function withHarness<T>(
       cache: createFileCache(join(dataDir, "cache"), config.cache),
       scanners: [
         createMetadataScanner(createMaintainerSnapshotStore(dataDir)),
-        createOsvScanner({ timeoutMs: opts.osvTimeoutMs ?? config.scanners.osv?.timeoutMs ?? 10_000 }),
+        createOsvScanner({
+          timeoutMs: opts.osvTimeoutMs ?? config.scanners.osv?.timeoutMs ?? 10_000,
+        }),
         createProvenanceScanner({ timeoutMs: config.scanners.provenance?.timeoutMs ?? 10_000 }),
         staticScanner,
         diffScanner,

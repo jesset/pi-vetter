@@ -51,6 +51,28 @@ export interface VetResult {
   notes: string[];
 }
 
+/**
+ * Downloads a tarball and verifies it against the version's registry
+ * dist.integrity (candidate and baseline share this trust path; dependency
+ * tarballs deliberately use a silent-skip policy instead).
+ */
+async function downloadVerified(
+  name: string,
+  version: string,
+  meta: { dist: { tarball: string; integrity?: string } },
+  signal: AbortSignal,
+  role = "",
+): Promise<Uint8Array> {
+  const integrity = meta.dist.integrity;
+  const label = role ? `${role} ${name}@${version}` : `${name}@${version}`;
+  if (!integrity) throw new Error(`no dist.integrity for ${label}`);
+  const bytes = await downloadTarball(meta.dist.tarball, signal);
+  if (!verifyIntegrity(bytes, integrity)) {
+    throw new Error(`integrity mismatch downloading ${label}`);
+  }
+  return bytes;
+}
+
 export async function buildArtifacts(
   target: EvaluationTarget,
   fetcher: VetDeps["fetchPackument"],
@@ -67,26 +89,27 @@ export async function buildArtifacts(
   const integrity = candidateMeta.dist.integrity;
   if (!integrity) throw new Error(`no dist.integrity for ${candidate.name}@${candidate.version}`);
 
-  const candidateBytes = await downloadTarball(candidateMeta.dist.tarball, signal());
-  if (!verifyIntegrity(candidateBytes, integrity)) {
-    throw new Error(`integrity mismatch downloading ${candidate.name}@${candidate.version}`);
-  }
+  const candidateBytes = await downloadVerified(
+    candidate.name,
+    candidate.version,
+    candidateMeta,
+    signal(),
+  );
   const candidateFiles = await parseTarball(candidateBytes);
 
   let baselineFiles: Artifacts["baselineFiles"] = null;
+  let baselineIntegrity: Artifacts["baselineIntegrity"] = null;
   if (baseline) {
     const baselineMeta = packument.versions[baseline.version];
     if (baselineMeta) {
-      const bytes = await downloadTarball(baselineMeta.dist.tarball, signal());
-      const baselineIntegrity = baselineMeta.dist.integrity;
-      if (!baselineIntegrity) {
-        throw new Error(`no dist.integrity for baseline ${baseline.name}@${baseline.version}`);
-      }
-      if (!verifyIntegrity(bytes, baselineIntegrity)) {
-        throw new Error(
-          `integrity mismatch downloading baseline ${baseline.name}@${baseline.version}`,
-        );
-      }
+      const bytes = await downloadVerified(
+        baseline.name,
+        baseline.version,
+        baselineMeta,
+        signal(),
+        "baseline",
+      );
+      baselineIntegrity = baselineMeta.dist.integrity ?? null;
       baselineFiles = await parseTarball(bytes);
     }
   }
@@ -128,6 +151,7 @@ export async function buildArtifacts(
     baselineFiles,
     candidatePackument: packument,
     candidateIntegrity: integrity,
+    baselineIntegrity,
     candidateSha256: createHash("sha256").update(candidateBytes).digest("hex"),
     candidateTarball: candidateBytes,
     dependencyFiles,

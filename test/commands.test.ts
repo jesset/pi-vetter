@@ -305,11 +305,11 @@ describe("buildArtifacts", () => {
         ),
       ),
     );
-    return fetcher;
+    return { fetcher, intendedIntegrity: integ(intendedBase) };
   }
 
   it("rejects a baseline tarball that does not match dist.integrity", async () => {
-    const fetcher = await fixture(true);
+    const { fetcher } = await fixture(true);
     await expect(
       buildArtifacts(
         {
@@ -323,7 +323,7 @@ describe("buildArtifacts", () => {
   });
 
   it("parses a baseline whose bytes match dist.integrity", async () => {
-    const fetcher = await fixture(false);
+    const { fetcher, intendedIntegrity } = await fixture(false);
     const artifacts = await buildArtifacts(
       {
         candidate: { name: "pkg", version: "2.0.0", scenario: "update" },
@@ -334,5 +334,6 @@ describe("buildArtifacts", () => {
     vi.unstubAllGlobals();
     expect(artifacts.baselineFiles).not.toBeNull();
     expect([...(artifacts.baselineFiles?.keys() ?? [])]).toContain("index.js");
+    expect(artifacts.baselineIntegrity).toBe(intendedIntegrity);
   });
 });

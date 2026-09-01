@@ -46,15 +46,17 @@ function incompleteEvidence(scanner: Evidence["scanner"], result: ScanResult): E
 }
 
 /**
- * Cache identity = candidate artifact + baseline context (#37): baseline-aware
+ * Cache identity = candidate + baseline artifact digests (#37): baseline-aware
  * scanners (diff/static/osv) produce scenario-dependent results, so name@version
- * alone would cross-contaminate install vs update runs; the artifact digest
- * keeps a mirror serving different bytes from hitting a stale entry.
+ * alone would cross-contaminate install vs update runs; the digests also keep a
+ * mirror serving different bytes for the same version from hitting a stale
+ * entry. Applied to every scanner uniformly — conservative for
+ * baseline-independent ones, which only lose hits when the artifact changes.
  */
 function cacheKey(ctx: ScannerContext): string {
   const { candidate, baseline, artifacts } = ctx;
   const digest = createHash("sha256")
-    .update(artifacts.candidateIntegrity)
+    .update(`${artifacts.candidateIntegrity}|${artifacts.baselineIntegrity ?? ""}`)
     .digest("hex")
     .slice(0, 12);
   const base = baseline
