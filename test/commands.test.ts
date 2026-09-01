@@ -206,7 +206,13 @@ describe("installApproved", () => {
         fetchPackument("pkg").then((p) => new Response(JSON.stringify(p), init)),
       ),
     );
-    const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "", code: 0 }));
+    const exec = vi.fn((cmd: string) =>
+      Promise.resolve(
+        cmd === "npm"
+          ? { stdout: "https://registry.npmjs.org/\n", stderr: "", code: 0 }
+          : { stdout: "", stderr: "", code: 0 },
+      ),
+    );
     const unpin = vi.fn();
     const outcomes = await installApproved(exec as never, [report("pkg", "2.0.0", "sha512-good")], {
       unpin,
@@ -232,7 +238,13 @@ describe("installApproved", () => {
         fetchPackument("pkg").then((p) => new Response(JSON.stringify(p), init)),
       ),
     );
-    const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "", code: 0 }));
+    const exec = vi.fn((cmd: string) =>
+      Promise.resolve(
+        cmd === "npm"
+          ? { stdout: "https://registry.npmjs.org/\n", stderr: "", code: 0 }
+          : { stdout: "", stderr: "", code: 0 },
+      ),
+    );
     const unpin = vi.fn();
     const outcomes = await installApproved(exec as never, [report("pkg", "2.0.0", "sha512-good")], {
       unpin,
@@ -251,13 +263,19 @@ describe("installApproved", () => {
         fetchPackument("pkg").then((p) => new Response(JSON.stringify(p), init)),
       ),
     );
-    const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "", code: 0 }));
+    const exec = vi.fn((cmd: string) =>
+      Promise.resolve(
+        cmd === "npm"
+          ? { stdout: "https://registry.npmjs.org/\n", stderr: "", code: 0 }
+          : { stdout: "", stderr: "", code: 0 },
+      ),
+    );
     const outcomes = await installApproved(exec as never, [
       report("pkg", "2.0.0", "sha512-original"),
     ]);
     vi.unstubAllGlobals();
     expect(outcomes[0]).toMatchObject({ status: "integrity-mismatch" });
-    expect(exec).not.toHaveBeenCalled();
+    expect(exec).not.toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
   });
 
   it("reports failed installs", async () => {
@@ -272,6 +290,76 @@ describe("installApproved", () => {
     const outcomes = await installApproved(exec as never, [report("pkg", "2.0.0", "sha512-good")]);
     vi.unstubAllGlobals();
     expect(outcomes[0]).toMatchObject({ status: "failed" });
+  });
+});
+
+describe("installApproved registry guard (#43)", () => {
+  const report = (name = "pkg") => ({
+    candidate: { name, version: "2.0.0", scenario: "update" as const },
+    baseline: { name, version: "0.0.1" },
+    verdict: "ALLOW" as const,
+    capped: false,
+    findings: [],
+    evidences: [],
+    riskScore: 0,
+    hasLifecycleScripts: false,
+    candidateIntegrity: "sha512-good",
+  });
+  const registryPackument = vi.fn(() =>
+    Promise.resolve({
+      name: "pkg",
+      "dist-tags": {},
+      versions: { "2.0.0": { version: "2.0.0", dist: { integrity: "sha512-good", tarball: "x" } } },
+      time: {},
+      maintainers: [],
+    }),
+  );
+
+  it("skips every package when the install registry diverges from the vetting registry", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify({})))),
+    );
+    const exec = vi.fn(() =>
+      Promise.resolve({ stdout: "https://mirror.corp/\n", stderr: "", code: 0 }),
+    );
+    const outcomes = await installApproved(exec as never, [report()]);
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "registry-mismatch" });
+    expect(outcomes[0]?.message).toContain("https://registry.npmjs.org");
+    expect(outcomes[0]?.message).toContain("https://mirror.corp");
+    expect(exec).not.toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+  });
+
+  it("skips conservatively when the registry probe fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify({})))),
+    );
+    const exec = vi.fn(() => Promise.reject(new Error("npm not found")));
+    const outcomes = await installApproved(exec as never, [report()]);
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "failed" });
+    expect(outcomes[0]?.message).toContain("could not confirm the install registry");
+    expect(exec).not.toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+  });
+
+  it("installs normally when both registries agree", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => registryPackument().then((p) => new Response(JSON.stringify(p)))),
+    );
+    const exec = vi.fn((cmd: string) =>
+      Promise.resolve(
+        cmd === "npm"
+          ? { stdout: "https://registry.npmjs.org", stderr: "", code: 0 }
+          : { stdout: "", stderr: "", code: 0 },
+      ),
+    );
+    const outcomes = await installApproved(exec as never, [report()]);
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "installed" });
+    expect(exec).toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
   });
 });
 

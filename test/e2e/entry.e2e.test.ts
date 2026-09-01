@@ -24,8 +24,11 @@ interface RecordedEntry {
 /** Records every surface the extension touches: registrations, exec, entries. */
 function fakePi() {
   const entries: RecordedEntry[] = [];
-  const exec = vi.fn(async (_command: string, _args: string[]) => ({
-    stdout: "",
+  const exec = vi.fn(async (command: string, _args?: string[], _opts?: unknown) => ({
+    stdout:
+      command === "npm"
+        ? `${process.env.PI_VETTER_NPM_REGISTRY ?? "https://registry.npmjs.org/"}\n`
+        : "",
     stderr: "",
     code: 0,
   }));
@@ -50,8 +53,7 @@ function fakePi() {
     appendEntry: (type: string, entry: { markdown: string }) => {
       entries.push({ type, entry });
     },
-    // drop the forwarded options arg so calls assert as (cmd, args)
-    exec: (cmd: string, args: string[], _opts?: unknown) => exec(cmd, args),
+    exec: (cmd: string, args: string[], opts?: unknown) => exec(cmd, args, opts),
   };
   return { pi: pi as unknown as ExtensionAPI, entries, exec, renderers, commands };
 }
@@ -159,7 +161,9 @@ describe("e2e: extension entrypoint", () => {
       const ctx = fakeCtx("cli", () => true);
       await commands.get("vet-install")?.handler("npm:quiet-pkg", ctx);
 
-      expect(exec).toHaveBeenCalledExactlyOnceWith("pi", ["install", "npm:quiet-pkg@1.1.0"]);
+      expect(exec.mock.calls.filter((c) => c[0] === "pi").map((c) => [c[0], c[1]])).toEqual([
+        ["pi", ["install", "npm:quiet-pkg@1.1.0"]],
+      ]);
       expect(entries.at(-1)?.entry.markdown).toContain("✓ quiet-pkg@1.1.0 installed");
       expect(entries.at(-1)?.entry.markdown).toContain("to pin: pi install npm:quiet-pkg@1.1.0");
       const notified = ctx.ui.notify.mock.calls.map((c) => c[0]);
@@ -212,7 +216,7 @@ describe("e2e: extension entrypoint", () => {
       const ctx = fakeCtx("cli", () => false);
       await commands.get("vet-install")?.handler("npm:quiet-pkg", ctx);
 
-      expect(exec).not.toHaveBeenCalled();
+      expect(exec.mock.calls.filter((c) => c[0] === "pi").map((c) => [c[0], c[1]])).toEqual([]);
       const settings = JSON.parse(readFileSync(join(agentDir, "settings.json"), "utf8")) as {
         packages: string[];
       };
