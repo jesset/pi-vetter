@@ -47,6 +47,25 @@ describe("e2e: verdict derivation & presentation", () => {
     );
   });
 
+  it("asks on eval-family code in the candidate (#40)", async () => {
+    const pkg: FixturePackage = {
+      name: "eval-pkg",
+      versions: [
+        {
+          version: "1.1.0",
+          files: [{ path: "index.js", content: "module.exports = eval(process.argv[2]);\n" }],
+        },
+      ],
+    };
+    await withHarness({ fixtures: [pkg] }, async ({ deps }) => {
+      const { reports } = await runVet(deps, "npm:eval-pkg");
+      const report = byName(reports, "eval-pkg");
+      expect(report?.verdict).toBe("ASK");
+      expect(report?.findings.map((f) => f.ruleId)).toContain("dynamic-code-execution");
+      expect(renderReports(reports)).toContain("**Verdict: ASK**");
+    });
+  });
+
   it("denies when OSV lists the candidate as malicious", async () => {
     const pkg: FixturePackage = {
       name: "evil-pkg",

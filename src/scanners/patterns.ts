@@ -3,6 +3,7 @@ import { textFiles } from "../npm/tarball.ts";
 
 export interface PatternSummary {
   evalFamily: string[];
+  dynamicModule: string[];
   childProcess: string[];
   credentials: string[];
   obfuscation: string[];
@@ -16,6 +17,10 @@ const CODE_EXT = /\.(js|mjs|cjs|ts|mts|cts)$/;
 const PATTERNS: Array<[keyof Omit<PatternSummary, "endpointHosts" | "scannedFileCount">, RegExp]> =
   [
     ["evalFamily", /\beval\s*\(|\bnew\s+Function\s*\(|vm\.runIn(?:Context|NewContext)\s*\(/],
+    [
+      "dynamicModule",
+      /require\(\s*\[[^\]]*\]\s*\.\s*join\s*\(|require\(\s*["'][^"']*["']\s*\+|require\(\s*Buffer\.from\s*\(\s*["'][A-Za-z0-9+/=]+["']\s*,\s*["']base64["']|\bimport\s*\(\s*[A-Za-z_$][\w$.()\s+]*\)/,
+    ],
     [
       "childProcess",
       /require\(\s*["']child_process["']\s*\)|from\s+["']child_process["']|\b(?:execSync|spawnSync|execFile|child_process)\b/,
@@ -39,6 +44,7 @@ const URL_RE = /https?:\/\/([a-zA-Z0-9.-]+(?::\d+)?)/g;
 export function scanPatterns(files: TarFiles): PatternSummary {
   const summary: PatternSummary = {
     evalFamily: [],
+    dynamicModule: [],
     childProcess: [],
     credentials: [],
     obfuscation: [],

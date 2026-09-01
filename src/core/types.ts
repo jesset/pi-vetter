@@ -24,6 +24,7 @@ export type RuleId =
   | "new-network-endpoint"
   | "new-child-process"
   | "credential-access"
+  | "dynamic-code-execution"
   | "obfuscation"
   | "prompt-injection-marker"
   | "young-package"

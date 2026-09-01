@@ -93,9 +93,19 @@ export const staticScanner: SecurityScanner = {
       evidences.push({
         scanner: "static",
         key: "static:eval",
-        status: "info",
-        detail: `eval-family markers present (${candidate.evalFamily.length}); informational, no verdict rule mapped`,
+        status: "fail",
+        detail: `eval-family markers found (${candidate.evalFamily.length}): ${candidate.evalFamily.slice(0, 3).join("; ")}`,
         data: candidate.evalFamily,
+      });
+    }
+
+    if (candidate.dynamicModule.length > 0) {
+      evidences.push({
+        scanner: "static",
+        key: "static:dynamic-module",
+        status: "fail",
+        detail: `dynamic module resolution found (${candidate.dynamicModule.length}): ${candidate.dynamicModule.slice(0, 3).join("; ")}`,
+        data: candidate.dynamicModule,
       });
     }
 

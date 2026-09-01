@@ -375,12 +375,47 @@ describe("static scanner", () => {
     expect(result.evidences.find((e) => e.key === "static:prompt-injection")).toBeUndefined();
   });
 
-  it("reports eval-family hits as info (no rule mapped)", async () => {
+  it("escalates eval-family hits to fail (#40)", async () => {
     const cand = files([["x.js", "eval('1');\n"]]);
     const result = await staticScanner.scan(
       ctx({ candidateFiles: cand, baselineFiles: new Map() }),
     );
-    expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("info");
+    expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("fail");
+  });
+
+  it("keeps eval-family a hard signal in the install scenario (#40)", async () => {
+    const cand = files([["x.js", "new Function('return 1');\n"]]);
+    const result = await staticScanner.scan(
+      ctx({ candidateFiles: cand, baselineFiles: null, baselineVersion: null }),
+    );
+    expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("fail");
+  });
+
+  it.each([
+    ["array-join require", 'const m = require(["child", "_process"].join(""));\n'],
+    ["string-concat require", 'const m = require("child" + "_process");\n'],
+    [
+      "base64-decoded require",
+      'const m = require(Buffer.from("Y2hpbGRfcHJvY2Vzcw==", "base64").toString());\n',
+    ],
+    ["dynamic variable import", "const mod = await import(moduleName);\n"],
+    ["dynamic computed import", 'const mod = await import(getUrl() + ".js");\n'],
+  ])("detects %s (#40)", async (_label, content) => {
+    const cand = files([["x.js", content]]);
+    const result = await staticScanner.scan(
+      ctx({ candidateFiles: cand, baselineFiles: new Map() }),
+    );
+    const ev = result.evidences.find((e) => e.key === "static:dynamic-module");
+    expect(ev?.status).toBe("fail");
+    expect(ev?.detail).toContain("x.js");
+  });
+
+  it("does not flag static literal imports as dynamic-module", async () => {
+    const cand = files([["x.js", 'const mod = await import("./local.js");\n']]);
+    const result = await staticScanner.scan(
+      ctx({ candidateFiles: cand, baselineFiles: new Map() }),
+    );
+    expect(result.evidences.find((e) => e.key === "static:dynamic-module")).toBeUndefined();
   });
 });
 

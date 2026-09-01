@@ -71,6 +71,12 @@ export const RULES: Record<RuleId, RuleDef> = {
     severity: "high",
     description: "Reads credential paths or secret environment variables",
   },
+  "dynamic-code-execution": {
+    kind: "ask",
+    severity: "medium",
+    description:
+      "eval/new Function/vm family, or dynamic module resolution (concatenated, decoded or variable require/import)",
+  },
   obfuscation: {
     kind: "ask",
     severity: "high",
@@ -148,6 +154,8 @@ const RULE_EVIDENCE_KEYS: Record<string, RuleId> = {
   "diff:new-endpoint": "new-network-endpoint",
   "diff:new-child-process": "new-child-process",
   "static:credential-access": "credential-access",
+  "static:eval": "dynamic-code-execution",
+  "static:dynamic-module": "dynamic-code-execution",
   "static:obfuscation": "obfuscation",
   "static:prompt-injection": "prompt-injection-marker",
   "metadata:young-package": "young-package",

@@ -10,6 +10,7 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
   "new-lifecycle-script": 40,
   "new-dependency-flagged": 35,
   "credential-access": 50,
+  "dynamic-code-execution": 30,
   obfuscation: 40,
   "prompt-injection-marker": 30,
   "maintainer-change": 20,

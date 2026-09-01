@@ -63,6 +63,17 @@ describe("deriveFindings", () => {
     ]);
     expect(findings[0]?.ruleId).toBe("socket-flagged");
   });
+
+  it("maps eval and dynamic-module hits to dynamic-code-execution (#40)", () => {
+    const findings = deriveFindings([
+      { scanner: "static", key: "static:eval", status: "fail", detail: "eval" },
+      { scanner: "static", key: "static:dynamic-module", status: "fail", detail: "join" },
+    ]);
+    expect(findings.map((f) => f.ruleId)).toEqual([
+      "dynamic-code-execution",
+      "dynamic-code-execution",
+    ]);
+  });
 });
 
 describe("filterEnabled", () => {
