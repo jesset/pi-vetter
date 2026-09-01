@@ -96,6 +96,43 @@ describe("e2e: fail-closed under fault injection", () => {
     });
   });
 
+  it("fails loudly when the baseline tarball does not match dist.integrity", async () => {
+    const tamperedBaseline: FixturePackage = {
+      name: "tampered-base-pkg",
+      versions: [
+        // baseline corrupt, candidate clean: diff analysis must never run
+        // against a reference the registry cannot attest to
+        {
+          version: "1.0.0",
+          corrupt: true,
+          files: [{ path: "index.js", content: "module.exports = () => 1;\n" }],
+        },
+        { version: "1.1.0", files: [{ path: "index.js", content: "module.exports = () => 2;\n" }] },
+      ],
+    };
+    await withHarness(
+      {
+        fixtures: [tamperedBaseline],
+        installed: [
+          {
+            source: "npm:tampered-base-pkg",
+            name: "tampered-base-pkg",
+            version: "1.0.0",
+            pinned: false,
+            scope: "user" as const,
+          },
+        ],
+      },
+      async ({ deps }) => {
+        const { reports, notes } = await runVet(deps, "npm:tampered-base-pkg");
+        expect(reports).toEqual([]);
+        expect(notes).toHaveLength(1);
+        expect(notes[0]).toContain("tampered-base-pkg@1.1.0");
+        expect(notes[0]).toContain("integrity mismatch downloading baseline");
+      },
+    );
+  });
+
   it("discloses a packument 404 in notes without crashing", async () => {
     await withHarness({ fixtures: [quietPkg] }, async ({ deps }) => {
       const { reports, notes } = await runVet(deps, "npm:ghost-pkg");

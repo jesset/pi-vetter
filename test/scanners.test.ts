@@ -69,6 +69,7 @@ function ctx(opts?: {
           : opts.baselineFiles,
       candidatePackument: opts?.packument ?? packument(),
       candidateIntegrity: "sha512-x",
+      baselineIntegrity: null,
       candidateTarball: new Uint8Array(0),
       dependencyFiles: new Map(),
       dependencySkipped: 0,
@@ -135,21 +136,39 @@ describe("metadata scanner", () => {
 });
 
 describe("osv scanner", () => {
-  it("classifies MAL- as malicious and GHSA as vulnerability", async () => {
-    const fetchMock = vi.fn(() =>
+  function depPackument(name: string, versions: string[]): Packument {
+    const entries: Packument["versions"] = {};
+    for (const v of versions) {
+      entries[v] = {
+        version: v,
+        dist: { integrity: "sha512-x", tarball: `https://r/${name}.tgz` },
+      };
+    }
+    return {
+      name,
+      "dist-tags": { latest: versions[versions.length - 1] ?? "" },
+      versions: entries,
+      time: {},
+      maintainers: [],
+    };
+  }
+
+  function osvResponse(vulnSets: Array<Array<{ id: string }>>) {
+    return vi.fn(() =>
       Promise.resolve(
-        new Response(
-          JSON.stringify({
-            results: [
-              { vulns: [{ id: "MAL-2026-1" }, { id: "GHSA-xxxx-yyyy-zzzz" }] },
-              { vulns: [] },
-            ],
-          }),
-        ),
+        new Response(JSON.stringify({ results: vulnSets.map((v) => ({ vulns: v })) })),
       ),
     );
+  }
+
+  function queriedBody(fetchMock: ReturnType<typeof vi.fn>) {
+    return JSON.parse(((fetchMock.mock.calls[0] as unknown[])[1] as { body: string }).body);
+  }
+
+  it("classifies MAL- as malicious and GHSA as vulnerability", async () => {
+    const fetchMock = osvResponse([[{ id: "MAL-2026-1" }, { id: "GHSA-xxxx-yyyy-zzzz" }], []]);
     vi.stubGlobal("fetch", fetchMock);
-    const result = await createOsvScanner().scan(ctx());
+    const result = await createOsvScanner({}).scan(ctx());
     vi.unstubAllGlobals();
     const keys = result.evidences.filter((e) => e.status === "fail").map((e) => e.key);
     expect(keys).toContain("osv:malicious");
@@ -157,11 +176,11 @@ describe("osv scanner", () => {
   });
 
   it("queries only new dependencies", async () => {
-    const fetchMock = vi.fn(() =>
-      Promise.resolve(new Response(JSON.stringify({ results: [{ vulns: [] }, { vulns: [] }] }))),
-    );
+    const fetchMock = osvResponse([[], []]);
     vi.stubGlobal("fetch", fetchMock);
-    await createOsvScanner().scan(
+    await createOsvScanner({
+      fetcher: () => Promise.resolve(depPackument("axios", ["1.0.0", "1.9.7"])),
+    }).scan(
       ctx({
         packument: packument({
           deps: { "1.0.0": { lodash: "^4.0.0" }, "2.0.0": { lodash: "^4.0.0", axios: "^1.0.0" } },
@@ -169,11 +188,106 @@ describe("osv scanner", () => {
       }),
     );
     vi.unstubAllGlobals();
-    const body = JSON.parse(((fetchMock.mock.calls[0] as unknown[])[1] as { body: string }).body);
+    const body = queriedBody(fetchMock);
     expect(body.queries.map((q: { package: { name: string } }) => q.package.name)).toEqual([
       "pkg",
       "axios",
     ]);
+  });
+
+  it("queries dependencies at the resolved version, not the range lower bound (#38)", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    await createOsvScanner({
+      fetcher: () => Promise.resolve(depPackument("axios", ["1.2.0", "1.9.7"])),
+    }).scan(ctx({ packument: packument({ deps: { "2.0.0": { axios: "^1.2.0" } } }) }));
+    vi.unstubAllGlobals();
+    expect(queriedBody(fetchMock).queries).toEqual([
+      { package: { name: "pkg", ecosystem: "npm" }, version: "2.0.0" },
+      { package: { name: "axios", ecosystem: "npm" }, version: "1.9.7" },
+    ]);
+  });
+
+  it("queries without a version for unparseable ranges", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    const fetcher = vi.fn();
+    await createOsvScanner({ fetcher }).scan(
+      ctx({ packument: packument({ deps: { "2.0.0": { axios: "git+https://x/axios.git" } } }) }),
+    );
+    vi.unstubAllGlobals();
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(queriedBody(fetchMock).queries[1]).toEqual({
+      package: { name: "axios", ecosystem: "npm" },
+    });
+  });
+
+  it("degrades to the lower bound when the dependency packument cannot be fetched", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    await createOsvScanner({
+      fetcher: () => Promise.reject(new Error("registry down")),
+    }).scan(ctx({ packument: packument({ deps: { "2.0.0": { axios: "^1.2.0" } } }) }));
+    vi.unstubAllGlobals();
+    expect(queriedBody(fetchMock).queries[1]).toEqual({
+      package: { name: "axios", ecosystem: "npm" },
+      version: "1.2.0",
+    });
+  });
+
+  it("flags the advisory at the resolved version", async () => {
+    const fetchMock = osvResponse([[], [{ id: "GHSA-aaaa-bbbb-cccc" }]]);
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await createOsvScanner({
+      fetcher: () => Promise.resolve(depPackument("axios", ["1.2.0", "1.9.7"])),
+    }).scan(ctx({ packument: packument({ deps: { "2.0.0": { axios: "^1.2.0" } } }) }));
+    vi.unstubAllGlobals();
+    const ev = result.evidences.find((e) => e.key === "osv:new-dependency-advisory");
+    expect(ev?.status).toBe("fail");
+    expect(ev?.detail).toContain("axios@1.9.7");
+    expect(ev?.detail).toContain("GHSA-aaaa-bbbb-cccc");
+  });
+
+  it("keeps composite ranges at the lower bound instead of querying dist-tags.latest", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    const fetcher = vi.fn();
+    await createOsvScanner({ fetcher }).scan(
+      ctx({ packument: packument({ deps: { "2.0.0": { axios: ">=1.5.0 <2.0.0" } } }) }),
+    );
+    vi.unstubAllGlobals();
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(queriedBody(fetchMock).queries[1]).toEqual({
+      package: { name: "axios", ecosystem: "npm" },
+      version: "1.5.0",
+    });
+  });
+
+  it("rejects an out-of-range dist-tags.latest fallback", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    await createOsvScanner({
+      fetcher: () => Promise.resolve(depPackument("axios", ["1.0.0"])),
+    }).scan(ctx({ packument: packument({ deps: { "2.0.0": { axios: "^1.2.0" } } }) }));
+    vi.unstubAllGlobals();
+    expect(queriedBody(fetchMock).queries[1]).toEqual({
+      package: { name: "axios", ecosystem: "npm" },
+      version: "1.2.0",
+    });
+  });
+
+  it("discloses lower-bound fallbacks as informational evidence", async () => {
+    const fetchMock = osvResponse([[], []]);
+    vi.stubGlobal("fetch", fetchMock);
+    const result = await createOsvScanner({
+      fetcher: () => Promise.reject(new Error("registry down")),
+    }).scan(ctx({ packument: packument({ deps: { "2.0.0": { axios: "^1.2.0" } } }) }));
+    vi.unstubAllGlobals();
+    const fallback = result.evidences.find((e) => e.key === "osv:dep-resolution-fallback");
+    expect(fallback?.status).toBe("info");
+    expect(fallback?.detail).toContain("1 of 1");
+    // the clean verdict is still produced alongside the disclosure
+    expect(result.evidences.find((e) => e.key === "osv:clean")?.status).toBe("pass");
   });
 
   it("returns timeout status on abort", async () => {
@@ -185,7 +299,7 @@ describe("osv scanner", () => {
         return Promise.reject(err);
       }),
     );
-    const result = await createOsvScanner(1).scan(ctx());
+    const result = await createOsvScanner({ timeoutMs: 1 }).scan(ctx());
     vi.unstubAllGlobals();
     expect(result.status).toBe("timeout");
   });

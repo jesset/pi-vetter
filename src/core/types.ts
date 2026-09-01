@@ -101,6 +101,8 @@ export interface Artifacts {
   baselineFiles: TarFiles | null;
   candidatePackument: Packument;
   candidateIntegrity: string;
+  /** Registry dist.integrity of the baseline version at scan time (null without a baseline). */
+  baselineIntegrity: string | null;
   /** Raw candidate tarball bytes (integrity-verified; used for engine uploads). */
   candidateTarball: Uint8Array;
   /** sha256 of the raw candidate tarball (VirusTotal lookup key). */

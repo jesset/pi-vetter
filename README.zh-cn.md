@@ -44,7 +44,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 | 层 | 扫描器 | 来源 |
 |---|---|---|
 | L0 | `metadata` | npm registry packument：维护者（本地快照比对）、包龄、发布节奏、废弃标记、下载量 |
-| L1 | `osv` | osv.dev querybatch —— 覆盖 CVE + GitHub Advisory (GHSA) + OpenSSF 恶意包 (MAL-)；新增依赖也一并查询 |
+| L1 | `osv` | osv.dev querybatch —— 覆盖 CVE + GitHub Advisory (GHSA) + OpenSSF 恶意包 (MAL-)；新增依赖也一并查询，且按 npm 实际会解析的版本（range 内最新已发布版本）查询 |
 | L1 | `provenance` | npm attestations：对 vendored 公共 TrustedRoot 做完整 sigstore 签名链验证 + 声明仓库矛盾检测；验证通过产出 `provenance:verified` |
 | L2 | `static` | 代码文件模式扫描：凭据访问、混淆特征、prompt-injection 标记、eval 族；既有命中为 info，新命中为 finding；install 场景（无基线）凭据/混淆命中降为 info，prompt-injection 始终为硬信号 |
 | L2 | `diff` | 新旧 tarball 对比：新增 lifecycle 脚本、新增依赖、新增 child_process、新增外联端点 |
@@ -72,7 +72,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 }
 ```
 
-扫描结果按 `扫描器 + 包@版本` 缓存在 `~/.pi/agent/pi-vetter/cache/`；VirusTotal 哈希查询永久缓存。缓存可整体关闭。
+扫描结果按 `扫描器 + 包@版本 + 基线版本 + artifact 摘要`（candidate 与 baseline 两侧）缓存在 `~/.pi/agent/pi-vetter/cache/`；VirusTotal 哈希查询永久缓存。缓存可整体关闭。
 
 ### 环境变量
 

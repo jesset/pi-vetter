@@ -1,4 +1,11 @@
 import type { Evidence, ScannerContext, ScanResult, SecurityScanner } from "../core/types.ts";
+import {
+  compareVersions,
+  type Fetcher,
+  parseSimpleRange,
+  resolveVersion,
+} from "../npm/dependencies.ts";
+import { fetchPackument } from "../npm/registry.ts";
 
 const MAX_DEPS = 50;
 
@@ -18,6 +25,43 @@ export function lowerBound(range: string): string | null {
   const m = /^(?:\^|~|>=?|v)?(\d+)\.(\d+)(?:\.(\d+))?/.exec(range.trim());
   if (!m) return null;
   return m[3] === undefined ? `${m[1]}.${m[2]}.0` : `${m[1]}.${m[2]}.${m[3]}`;
+}
+
+interface DepVersion {
+  version: string | undefined;
+  /** False when the query version fell back to the range lower bound. */
+  resolved: boolean;
+}
+
+/**
+ * The version npm would actually install for a declared single-term range
+ * (highest published in-range version). Composite ranges that only the
+ * lower-bound parser understands stay at that bound, and an out-of-range
+ * `dist-tags.latest` fallback is rejected; resolution failures degrade to the
+ * lower bound too. Undefined keeps the query version-less (git/workspace
+ * specs), mirroring pre-#38 behaviour.
+ */
+async function resolveDepVersion(
+  name: string,
+  range: string,
+  fetcher: Fetcher,
+  timeoutMs: number,
+): Promise<DepVersion> {
+  const parsed = parseSimpleRange(range);
+  if (!parsed) return { version: lowerBound(range) ?? undefined, resolved: false };
+  try {
+    const packument = await fetcher(name, AbortSignal.timeout(timeoutMs));
+    const resolved = resolveVersion(range, packument);
+    const inRange =
+      resolved !== undefined &&
+      compareVersions(resolved, parsed.lower) >= 0 &&
+      (parsed.upper === null || compareVersions(resolved, parsed.upper) < 0);
+    return inRange
+      ? { version: resolved, resolved: true }
+      : { version: parsed.lower, resolved: false };
+  } catch {
+    return { version: parsed.lower, resolved: false };
+  }
 }
 
 function depsOf(ctx: ScannerContext): Record<string, string> {
@@ -48,16 +92,27 @@ async function queryBatch(
   return (body.results ?? []).map((r) => r.vulns ?? []);
 }
 
-export function createOsvScanner(timeoutMs = 10_000): SecurityScanner {
+export function createOsvScanner(options?: {
+  timeoutMs?: number;
+  fetcher?: Fetcher;
+}): SecurityScanner {
+  const timeoutMs = options?.timeoutMs ?? 10_000;
+  const fetcher = options?.fetcher ?? fetchPackument;
   return {
     name: "osv",
     layer: 1,
     async scan(ctx: ScannerContext): Promise<ScanResult> {
       try {
         const deps = depsOf(ctx);
-        const depEntries = Object.entries(deps)
-          .slice(0, MAX_DEPS)
-          .map(([name, range]) => ({ name, version: lowerBound(range) ?? undefined }));
+        const depList = Object.entries(deps).slice(0, MAX_DEPS);
+        const depVersions = await Promise.all(
+          depList.map(([name, range]) => resolveDepVersion(name, range, fetcher, timeoutMs)),
+        );
+        const depEntries = depList.map(([name], i) => ({
+          name,
+          version: depVersions[i]?.version,
+        }));
+        const unresolved = depVersions.filter((d) => !d.resolved).length;
 
         const queries = [
           { name: ctx.candidate.name, version: ctx.candidate.version as string | undefined },
@@ -102,12 +157,21 @@ export function createOsvScanner(timeoutMs = 10_000): SecurityScanner {
             detail:
               depMal.length > 0
                 ? `new dependency ${dep.name}@${dep.version ?? "*"} is listed as malicious: ${depMal.map((v) => v.id).join(", ")}`
-                : `new dependency ${dep.name} has advisories: ${vulns.map((v) => v.id).join(", ")}`,
+                : `new dependency ${dep.name}@${dep.version ?? "*"} has advisories: ${vulns.map((v) => v.id).join(", ")}`,
             data: { dependency: dep, vulns },
           });
         }
 
-        if (evidences.length === 0) {
+        if (unresolved > 0) {
+          evidences.push({
+            scanner: "osv",
+            key: "osv:dep-resolution-fallback",
+            status: "info",
+            detail: `${unresolved} of ${depList.length} dependency version(s) queried at the range lower bound (registry resolution unavailable or composite range)`,
+          });
+        }
+
+        if (!evidences.some((e) => e.status === "fail")) {
           evidences.push({
             scanner: "osv",
             key: "osv:clean",

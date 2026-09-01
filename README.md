@@ -44,7 +44,7 @@ Fail-closed: if any **enabled** scanner fails or times out, the verdict is cappe
 | Layer | Scanner | Source |
 |---|---|---|
 | L0 | `metadata` | npm registry packument: maintainers (local snapshot diff), package age, release cadence, deprecation, downloads |
-| L1 | `osv` | osv.dev querybatch — covers CVE + GitHub Advisories (GHSA) + OpenSSF malicious packages (MAL-); new dependencies are queried too |
+| L1 | `osv` | osv.dev querybatch — covers CVE + GitHub Advisories (GHSA) + OpenSSF malicious packages (MAL-); new dependencies are queried too, at the version npm would actually resolve (highest published in-range version) |
 | L1 | `provenance` | npm attestations: full sigstore signature-chain verification against a vendored public TrustedRoot, plus declared-repo conflict detection; verified bundles yield `provenance:verified` |
 | L2 | `static` | pattern scan of code files: credential access, obfuscation, prompt-injection markers, eval family; pre-existing hits are info, new hits are findings; in the install scenario (no baseline) credential/obfuscation hits stay informational while prompt-injection remains a hard signal |
 | L2 | `diff` | old-vs-new tarball comparison: new lifecycle scripts, new dependencies, new child_process usage, new outbound endpoints |
@@ -72,7 +72,7 @@ Rules map evidence to verdicts and can be toggled individually in the config fil
 }
 ```
 
-Scan results are cached per `scanner + pkg@version` under `~/.pi/agent/pi-vetter/cache/`; VirusTotal hash lookups are cached forever. Caching can be disabled entirely.
+Scan results are cached per `scanner + pkg@version + baseline + artifact digests` under `~/.pi/agent/pi-vetter/cache/`; VirusTotal hash lookups are cached forever. Caching can be disabled entirely.
 
 ### Environment variables
 
