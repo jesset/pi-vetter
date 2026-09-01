@@ -1,12 +1,33 @@
 {
   "scanners": {
-    "metadata": { "enabled": true },
-    "osv": { "enabled": true, "timeoutMs": 10000 },
-    "provenance": { "enabled": true, "timeoutMs": 10000 },
-    "static": { "enabled": true },
-    "diff": { "enabled": true },
-    "virustotal": { "enabled": false, "apiKey": "", "timeoutMs": 60000, "pollDeadlineMs": 60000 },
-    "socket": { "enabled": false, "apiKey": "", "orgSlug": "" }
+    "metadata": {
+      "enabled": true
+    },
+    "osv": {
+      "enabled": true,
+      "timeoutMs": 10000
+    },
+    "provenance": {
+      "enabled": true,
+      "timeoutMs": 10000
+    },
+    "static": {
+      "enabled": true
+    },
+    "diff": {
+      "enabled": true
+    },
+    "virustotal": {
+      "enabled": false,
+      "apiKey": "",
+      "timeoutMs": 60000,
+      "pollDeadlineMs": 60000
+    },
+    "socket": {
+      "enabled": false,
+      "apiKey": "",
+      "orgSlug": ""
+    }
   },
   "rules": {
     "deny": {
@@ -26,12 +47,31 @@
       "prompt-injection-marker": true,
       "young-package": true,
       "rapid-release": true,
-      "deprecated-candidate": true
+      "deprecated-candidate": true,
+      "dynamic-code-execution": true,
+      "transitive-risk": true,
+      "provenance-missing": true
     }
   },
-  "cache": { "enabled": true, "ttlHours": 24 },
-  "score": { "weights": {} },
-  "network": { "timeoutMs": 30000 },
-  "install": { "pinOnInstall": false },
-  "dependencies": { "enabled": true, "maxDepth": 2, "maxPackages": 20 }
+  "provenance": {
+    "required": false
+  },
+  "cache": {
+    "enabled": true,
+    "ttlHours": 24
+  },
+  "score": {
+    "weights": {}
+  },
+  "network": {
+    "timeoutMs": 30000
+  },
+  "install": {
+    "pinOnInstall": false
+  },
+  "dependencies": {
+    "enabled": true,
+    "maxDepth": 2,
+    "maxPackages": 20
+  }
 }

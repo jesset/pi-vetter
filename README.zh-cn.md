@@ -29,7 +29,7 @@ pi install npm:pi-vetter
 | `/vet` | 只读评估。不带参数 = 检查全部已装扩展的可用更新；也可指定：`/vet npm:foo npm:bar@1.2.3` |
 | `/vet-install` | 同样评估，然后交互多选（TUI 复选框；非 TUI 模式退化为分组确认），只安装你批准的包 |
 
-批准的包通过 `pi install npm:<pkg>@<version>` 安装——装的就是评估过的那个版本，且每次安装前重新比对 registry 完整性（TOCTOU 防护）。默认在安装成功后把 settings 条目还原为非 pin spec（ADR-0003 修订版）："让这个包从此退出更新通道"是你的决定而非评估器的副作用——安装结果会给出精确的 pin 命令供你自行执行（`install.pinOnInstall: true` 恢复旧的总是 pin 行为）。pinned 包在每次 `/vet` 中照常评估并在报告中标注。
+批准的包通过 `pi install npm:<pkg>@<version>` 安装——装的就是评估过的那个版本，且每次安装前重新比对 registry 完整性（TOCTOU 防护）。安装前会对比安装 registry（`npm config get registry`，即 pi/npm 实际解析所经）与审查 registry（`PI_VETTER_NPM_REGISTRY`）；二者不一致时跳过安装并给出指引，而非在无法验证的链路上继续。默认在安装成功后把 settings 条目还原为非 pin spec（ADR-0003 修订版）："让这个包从此退出更新通道"是你的决定而非评估器的副作用——安装结果会给出精确的 pin 命令供你自行执行（`install.pinOnInstall: true` 恢复旧的总是 pin 行为）。pinned 包在每次 `/vet` 中照常评估并在报告中标注。
 
 ### 判定模型
 
@@ -45,8 +45,8 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 |---|---|---|
 | L0 | `metadata` | npm registry packument：维护者（本地快照比对）、包龄、发布节奏、废弃标记、下载量 |
 | L1 | `osv` | osv.dev querybatch —— 覆盖 CVE + GitHub Advisory (GHSA) + OpenSSF 恶意包 (MAL-)；新增依赖也一并查询，且按 npm 实际会解析的版本（range 内最新已发布版本）查询 |
-| L1 | `provenance` | npm attestations：对 vendored 公共 TrustedRoot 做完整 sigstore 签名链验证 + 声明仓库矛盾检测；验证通过产出 `provenance:verified` |
-| L2 | `static` | 代码文件模式扫描：凭据访问、混淆特征、prompt-injection 标记、eval 族；既有命中为 info，新命中为 finding；install 场景（无基线）凭据/混淆命中降为 info，prompt-injection 始终为硬信号 |
+| L1 | `provenance` | npm attestations：对 vendored 公共 TrustedRoot 做完整 sigstore 签名链验证 + 声明仓库矛盾检测；验证通过产出 `provenance:verified`。缺失 attestations 默认为 info，开启 `provenance.required` 后升为 ASK |
+| L2 | `static` | 代码文件模式扫描：凭据访问、混淆特征、prompt-injection 标记、eval 族（两种场景均 ASK）以及动态模块解析（拼接 / base64 解码 / 变量 require-import）；既有命中为 info，新命中为 finding；install 场景（无基线）凭据/混淆命中降为 info，prompt-injection 始终为硬信号 |
 | L2 | `diff` | 新旧 tarball 对比：新增 lifecycle 脚本、新增依赖、新增 child_process、新增外联端点 |
 | L3 | `virustotal` | 先按哈希查询已有样本、未命中再上传（上传新文件不消耗每日配额）；≥2 引擎检出 → DENY。默认关闭，配置 API key 启用 |
 | L3 | `socket` | Socket.dev 包告警（gptMalware、installScripts、obfuscatedFile、typosquatting 等）；高风险告警 → ASK（`socket-flagged`）。默认关闭——注意免费 token 的配额是按调用扣减的余额制（每次 purl 查询消耗一块），余额耗尽后常态性配额不足（判定将封顶 ASK） |
@@ -55,7 +55,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 
 ### 规则
 
-规则把证据映射到判定，可在配置文件中逐条开关（如 `ask.new-lifecycle-script: false`）。当前 DENY 规则：`malicious-package`、`provenance-conflict`、`vt-detections`。当前 ASK 规则：`known-vulnerability`、`new-lifecycle-script`、`maintainer-change`、`new-dependency-flagged`、`new-network-endpoint`、`new-child-process`、`credential-access`、`obfuscation`、`prompt-injection-marker`、`young-package`、`rapid-release`、`deprecated-candidate`。
+规则把证据映射到判定，可在配置文件中逐条开关（如 `ask.new-lifecycle-script: false`）。当前 DENY 规则：`malicious-package`、`provenance-conflict`、`vt-detections`。当前 ASK 规则：`known-vulnerability`、`new-lifecycle-script`、`maintainer-change`、`new-dependency-flagged`、`new-network-endpoint`、`new-child-process`、`credential-access`、`dynamic-code-execution`、`transitive-risk`、`obfuscation`、`prompt-injection-marker`、`young-package`、`rapid-release`、`deprecated-candidate`、`provenance-missing`（仅当 `provenance.required` 开启）。被禁用的规则会在报告 Notes 中披露，ALLOW 不会伪装成完整扫描。
 
 ## 配置
 
@@ -65,6 +65,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 {
   "scanners": { "osv": { "enabled": true, "timeoutMs": 10000 }, "virustotal": { "enabled": false, "apiKey": "" } },
   "rules": { "deny": {}, "ask": { "young-package": true } },
+  "provenance": { "required": false },
   "cache": { "enabled": true, "ttlHours": 24 },
   "score": { "weights": {} },
   "network": { "timeoutMs": 30000 },
@@ -89,7 +90,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 ## 注意事项
 
 - 批准安装仍会执行该包的 install 脚本——Pi 安装不带 `--ignore-scripts`；pi-vetter 会警告但无法阻止
-- 依赖深扫（`dependencies.*` 配置，默认开启、深度 2 / 上限 20 个包）会下载并静态扫描传递依赖 tarball——每个依赖解析为声明 range 内的最高已发布版本（range 无普通 semver 形状或无匹配版本时回退 `latest`，因此扫描的 tarball 偶尔会与 npm 实际安装的版本不同）；命中以 info 证据逐依赖归属标注，本阶段不影响判定
+- 依赖深扫（`dependencies.*` 配置，默认开启、深度 2 / 上限 20 个包）会下载并静态扫描传递依赖 tarball——每个依赖解析为声明 range 内的最高已发布版本（range 无普通 semver 形状或无匹配版本时回退 `latest`，因此扫描的 tarball 偶尔会与 npm 实际安装的版本不同）；命中逐依赖归属标注：风险类（凭据、混淆、prompt injection、动态代码）升为 ASK 级 transitive-risk 规则，普通 Node.js API 用法保持 info。
 - 自举供应链：pi-vetter 自身的运行时依赖（`@sigstore/bundle`、`@sigstore/verify`、`tar-stream`）同样是 npm 包，与它所评估的一切存在同样的理论投毒风险——评估器无法把自己举到自身供应链之上。请像审计任何拥有完整权限的工具一样审计它的 lockfile
 - 非 npm 源（git/本地路径）不在 MVP 范围内——无参数的 `/vet` 不会评估它们，但会在报告 Notes 中逐条披露被跳过的源
 
