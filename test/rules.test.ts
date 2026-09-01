@@ -74,6 +74,13 @@ describe("deriveFindings", () => {
       "dynamic-code-execution",
     ]);
   });
+
+  it("maps transitive dependency risk to the transitive-risk rule (#41)", () => {
+    const findings = deriveFindings([
+      { scanner: "static", key: "static:dependency-risk", status: "fail", detail: "x" },
+    ]);
+    expect(findings[0]?.ruleId).toBe("transitive-risk");
+  });
 });
 
 describe("filterEnabled", () => {

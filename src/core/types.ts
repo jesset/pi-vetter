@@ -25,6 +25,7 @@ export type RuleId =
   | "new-child-process"
   | "credential-access"
   | "dynamic-code-execution"
+  | "transitive-risk"
   | "obfuscation"
   | "prompt-injection-marker"
   | "young-package"

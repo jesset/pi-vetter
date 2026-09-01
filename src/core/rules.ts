@@ -77,6 +77,12 @@ export const RULES: Record<RuleId, RuleDef> = {
     description:
       "eval/new Function/vm family, or dynamic module resolution (concatenated, decoded or variable require/import)",
   },
+  "transitive-risk": {
+    kind: "ask",
+    severity: "high",
+    description:
+      "Risky pattern hits (credentials, obfuscation, prompt injection, dynamic code) inside a scanned dependency tarball",
+  },
   obfuscation: {
     kind: "ask",
     severity: "high",
@@ -156,6 +162,7 @@ const RULE_EVIDENCE_KEYS: Record<string, RuleId> = {
   "static:credential-access": "credential-access",
   "static:eval": "dynamic-code-execution",
   "static:dynamic-module": "dynamic-code-execution",
+  "static:dependency-risk": "transitive-risk",
   "static:obfuscation": "obfuscation",
   "static:prompt-injection": "prompt-injection-marker",
   "metadata:young-package": "young-package",

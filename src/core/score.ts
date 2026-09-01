@@ -11,6 +11,7 @@ const DEFAULT_WEIGHTS: Record<string, number> = {
   "new-dependency-flagged": 35,
   "credential-access": 50,
   "dynamic-code-execution": 30,
+  "transitive-risk": 40,
   obfuscation: 40,
   "prompt-injection-marker": 30,
   "maintainer-change": 20,

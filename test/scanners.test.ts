@@ -348,7 +348,7 @@ describe("static scanner", () => {
     expect(result.evidences.find((e) => e.key === "static:prompt-injection")?.status).toBe("fail");
   });
 
-  it("reports dependency-tarball hits as informational evidence with attribution", async () => {
+  it("escalates risky dependency-tarball hits to fail evidence (#41)", async () => {
     const ctx0 = ctx({
       candidateFiles: files([["index.js", "module.exports = 1;\n"]]),
     });
@@ -356,10 +356,25 @@ describe("static scanner", () => {
       ["left-pad@1.0.0", files([["pad.js", "const t = process.env.GITHUB_TOKEN;\n"]])],
     ]);
     const result = await staticScanner.scan(ctx0);
-    const ev = result.evidences.find((e) => e.key === "static:dependency-hits");
-    expect(ev?.status).toBe("info");
+    const ev = result.evidences.find((e) => e.key === "static:dependency-risk");
+    expect(ev?.status).toBe("fail");
     expect(ev?.detail).toContain("left-pad@1.0.0");
     expect(ev?.detail).toContain("credential");
+  });
+
+  it("keeps child-process-only dependency hits informational (#41)", async () => {
+    const ctx0 = ctx({
+      candidateFiles: files([["index.js", "module.exports = 1;\n"]]),
+    });
+    ctx0.artifacts.dependencyFiles = new Map([
+      ["runner@1.0.0", files([["run.js", 'require("child_process").execSync("ls");\n']])],
+    ]);
+    const result = await staticScanner.scan(ctx0);
+    expect(result.evidences.find((e) => e.key === "static:dependency-risk")).toBeUndefined();
+    const ev = result.evidences.find((e) => e.key === "static:dependency-hits");
+    expect(ev?.status).toBe("info");
+    expect(ev?.detail).toContain("runner@1.0.0");
+    expect(ev?.detail).toContain("child-process");
   });
 
   it("marks prompt injection and obfuscation", async () => {

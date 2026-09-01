@@ -57,29 +57,45 @@ export const staticScanner: SecurityScanner = {
         ctx.artifacts.dependencySkipped > 0
           ? ` (+${ctx.artifacts.dependencySkipped} skipped: fetch/verify failed)`
           : "";
-      const hits: string[] = [];
+      // #41 severity ladder: trusted-extension → trusted-dependency → malicious
+      // transitive is the canonical npm attack path, so risky labels inside
+      // dependency tarballs escalate; ordinary Node.js API usage stays info.
+      const riskHits: string[] = [];
+      const infoHits: string[] = [];
       for (const [key, depFiles] of ctx.artifacts.dependencyFiles) {
         const dep = scanPatterns(depFiles);
-        const summary: Record<string, string[]> = {
-          credential: dep.credentials,
-          obfuscation: dep.obfuscation,
-          "prompt-injection": dep.promptInjection,
-          "child-process": dep.childProcess,
-          eval: dep.evalFamily,
-        };
-        for (const [label, list] of Object.entries(summary)) {
-          if (list.length > 0) hits.push(`${key}: ${label} x${list.length}`);
+        const summary: Array<[string, string[], boolean]> = [
+          ["credential", dep.credentials, true],
+          ["obfuscation", dep.obfuscation, true],
+          ["prompt-injection", dep.promptInjection, true],
+          ["eval", dep.evalFamily, true],
+          ["dynamic-module", dep.dynamicModule, true],
+          ["child-process", dep.childProcess, false],
+        ];
+        for (const [label, list, risky] of summary) {
+          if (list.length === 0) continue;
+          (risky ? riskHits : infoHits).push(`${key}: ${label} x${list.length}`);
         }
       }
-      if (hits.length > 0) {
+      if (riskHits.length > 0) {
+        evidences.push({
+          scanner: "static",
+          key: "static:dependency-risk",
+          status: "fail",
+          detail: `risky pattern hits inside dependency tarballs: ${riskHits.slice(0, 6).join("; ")}${riskHits.length > 6 ? ` (+${riskHits.length - 6} more)` : ""}${skipped}`,
+          data: riskHits,
+        });
+      }
+      if (infoHits.length > 0) {
         evidences.push({
           scanner: "static",
           key: "static:dependency-hits",
           status: "info",
-          detail: `pattern hits inside dependency tarballs (informational in MVP): ${hits.slice(0, 6).join("; ")}${hits.length > 6 ? ` (+${hits.length - 6} more)` : ""}${skipped}`,
-          data: hits,
+          detail: `informational pattern hits inside dependency tarballs: ${infoHits.slice(0, 6).join("; ")}${infoHits.length > 6 ? ` (+${infoHits.length - 6} more)` : ""}${skipped}`,
+          data: infoHits,
         });
-      } else {
+      }
+      if (riskHits.length === 0 && infoHits.length === 0) {
         evidences.push({
           scanner: "static",
           key: "static:dependencies-clean",

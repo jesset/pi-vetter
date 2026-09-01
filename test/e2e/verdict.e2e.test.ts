@@ -129,7 +129,7 @@ describe("e2e: verdict derivation & presentation", () => {
     });
   });
 
-  it("attributes deep-scan pattern hits to the dependency without failing the candidate", async () => {
+  it("escalates risky deep-scan hits to an ASK verdict attributed per dependency (#41)", async () => {
     const host: FixturePackage = {
       name: "host-pkg",
       versions: [
@@ -159,11 +159,12 @@ describe("e2e: verdict derivation & presentation", () => {
         const { reports, notes } = await runVet(deps, "npm:host-pkg");
         expect(notes).toEqual([]);
         const report = byName(reports, "host-pkg");
-        // the hit is informational and attributed per dependency
-        const hit = report?.evidences.find((e) => e.key === "static:dependency-hits");
-        expect(hit?.status).toBe("info");
+        // risky transitive hits fail and drive the verdict, still attributed per dependency
+        const hit = report?.evidences.find((e) => e.key === "static:dependency-risk");
+        expect(hit?.status).toBe("fail");
         expect(hit?.detail).toContain("sketchy-dep@1.0.4: credential");
-        expect(report?.verdict).toBe("ALLOW");
+        expect(report?.verdict).toBe("ASK");
+        expect(report?.findings.map((f) => f.ruleId)).toContain("transitive-risk");
       },
     );
   });
