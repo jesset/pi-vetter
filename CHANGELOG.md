@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - MIT `LICENSE` file at the repo root (the license was declared in package.json but the text was missing); README badge row (npm version / downloads / license / node) in both READMEs; GitHub topics expanded for discoverability
 
+### Fixed
+
+- Baseline tarballs are integrity-verified against the registry `dist.integrity` before entering diff analysis; a tampered or unattested baseline now fails the package evaluation (fail-closed) instead of serving as the behavioral reference (#36)
+- Scanner cache identity is bound to the baseline version and the candidate artifact digest; baseline-aware scanners (diff/static/osv) no longer reuse results across install-vs-update scenarios or different baselines (#37)
+- OSV dependency queries use the version npm would actually resolve (highest published in-range version) instead of the range's lower bound, so vulnerabilities affecting only higher in-range versions are no longer missed; resolution failures degrade to the lower bound, unparseable ranges keep the version-less query (#38)
+
 ### Changed
 
 - npm keywords expanded (`audit`, `cli`, `osv`, `sigstore`, `typosquatting`) for better registry search hits
