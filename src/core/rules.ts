@@ -25,6 +25,11 @@ export const RULES: Record<RuleId, RuleDef> = {
     severity: "critical",
     description: "Provenance/attestation missing or contradicting the declared repository",
   },
+  "provenance-missing": {
+    kind: "ask",
+    severity: "medium",
+    description: "No npm attestations published for the version (provenance.required policy)",
+  },
   "vt-detections": {
     kind: "deny",
     severity: "critical",
@@ -156,6 +161,7 @@ export function hasIncomplete(evidences: Evidence[]): boolean {
 const RULE_EVIDENCE_KEYS: Record<string, RuleId> = {
   "osv:malicious": "malicious-package",
   "provenance:conflict": "provenance-conflict",
+  "provenance:missing": "provenance-missing",
   "virustotal:detections": "vt-detections",
   "osv:vulnerability": "known-vulnerability",
   "socket:alerts": "socket-flagged",

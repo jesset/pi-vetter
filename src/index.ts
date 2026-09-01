@@ -27,6 +27,7 @@ function assembleScanners(config: VetterConfig): SecurityScanner[] {
       ...(config.scanners.provenance?.timeoutMs !== undefined
         ? { timeoutMs: config.scanners.provenance.timeoutMs }
         : {}),
+      required: config.provenance?.required === true,
     }),
     staticScanner,
     diffScanner,

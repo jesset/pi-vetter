@@ -45,6 +45,42 @@ function sampleAttestations(): unknown {
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
+describe("provenance-required policy (#44)", () => {
+  // strip the attestations url so the scanner sees a version without any
+  function ctxNoAttestations(): ScannerContext {
+    const base = ctx();
+    const version = base.artifacts.candidatePackument.versions["4.1.2"];
+    if (!version) throw new Error("fixture missing version");
+    version.dist = { integrity: "sha512-x", tarball: "x" };
+    return base;
+  }
+
+  it("keeps missing attestations informational by default", async () => {
+    const scanner = createProvenanceScanner();
+    const result = await scanner.scan(ctxNoAttestations());
+    expect(result.evidences.find((e) => e.key === "provenance:none")?.status).toBe("info");
+    expect(result.evidences.find((e) => e.key === "provenance:missing")).toBeUndefined();
+  });
+
+  it("escalates missing attestations to fail when required", async () => {
+    const scanner = createProvenanceScanner({ required: true });
+    const result = await scanner.scan(ctxNoAttestations());
+    const ev = result.evidences.find((e) => e.key === "provenance:missing");
+    expect(ev?.status).toBe("fail");
+    expect(ev?.detail).toContain("required");
+    expect(result.evidences.find((e) => e.key === "provenance:none")).toBeUndefined();
+  });
+
+  it("verified attestation behaviour is unchanged when required", async () => {
+    const scanner = createProvenanceScanner({
+      fetchImpl: vi.fn(() => Promise.resolve(json(sampleAttestations()))),
+      required: true,
+    });
+    const result = await scanner.scan(ctx());
+    expect(result.evidences.find((e) => e.key === "provenance:verified")?.status).toBe("pass");
+  });
+});
+
 describe("provenance verification", () => {
   it("fails with provenance:conflict when a verifiable bundle fails signature verification", async () => {
     const tampered = sampleAttestations() as {

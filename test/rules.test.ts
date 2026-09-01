@@ -87,6 +87,12 @@ describe("deriveFindings", () => {
     ]);
     expect(findings[0]?.ruleId).toBe("transitive-risk");
   });
+  it("maps provenance:missing to the provenance-missing rule (#44)", () => {
+    const findings = deriveFindings([
+      { scanner: "provenance", key: "provenance:missing", status: "fail", detail: "x" },
+    ]);
+    expect(findings[0]?.ruleId).toBe("provenance-missing");
+  });
 });
 
 describe("disabledRules (#42)", () => {
@@ -108,6 +114,7 @@ describe("filterEnabled", () => {
   const config: VetterConfig = {
     scanners: {},
     rules: { deny: {}, ask: { "young-package": false } },
+    provenance: { required: false },
     cache: { enabled: true, ttlHours: 24 },
     score: { weights: {} },
     network: { timeoutMs: 30_000 },

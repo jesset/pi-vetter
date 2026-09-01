@@ -29,9 +29,7 @@ const trimSlashes = (url: string): string => url.replace(/\/+$/, "");
  * resolves through the user's npm config — when those endpoints differ the
  * re-check cannot vouch for what npm fetches, so we fail closed.
  */
-async function probeInstallRegistry(
-  exec: ExecFn,
-): Promise<{ url: string } | { error: string }> {
+async function probeInstallRegistry(exec: ExecFn): Promise<{ url: string } | { error: string }> {
   try {
     const result = await exec("npm", ["config", "get", "registry"], { timeout: 10_000 });
     if (result.code !== 0) {
@@ -41,7 +39,9 @@ async function probeInstallRegistry(
     if (!url) return { error: "npm config get registry returned empty output" };
     return { url };
   } catch (err) {
-    return { error: `npm config get registry failed: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      error: `npm config get registry failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }
 

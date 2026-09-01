@@ -4,6 +4,7 @@ import type { Finding, VetterConfig } from "./types.ts";
 const DEFAULT_WEIGHTS: Record<string, number> = {
   "malicious-package": 100,
   "provenance-conflict": 95,
+  "provenance-missing": 25,
   "vt-detections": 90,
   "known-vulnerability": 45,
   "socket-flagged": 40,
