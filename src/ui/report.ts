@@ -39,6 +39,13 @@ export function renderReport(report: EvaluationReport): string {
     lines.push(`- ${STATUS_GLYPH[e.status] ?? "?"} \`${e.key}\` — ${e.detail}`);
   }
 
+  if (report.verdict === "ALLOW") {
+    lines.push("");
+    lines.push(
+      "> ℹ ALLOW means no enabled security rule detected a known risk — it does not prove the package is safe.",
+    );
+  }
+
   if (report.hasLifecycleScripts) {
     lines.push("");
     lines.push(

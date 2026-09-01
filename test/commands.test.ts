@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import { buildArtifacts, parseArgs, resolveTargets } from "../src/commands/vet.ts";
+import { buildArtifacts, parseArgs, policyNotes, resolveTargets } from "../src/commands/vet.ts";
 import { defaultConfig } from "../src/config.ts";
 import type { Packument } from "../src/core/types.ts";
 import { installApproved, installSpec } from "../src/install/gated-installer.ts";
@@ -151,6 +151,20 @@ describe("resolveTargets", () => {
       "- git:git@github.com:foo/bar: not an npm source, out of scope",
       "- /local/path: not an npm source, out of scope",
     ]);
+  });
+});
+
+describe("policyNotes (#42)", () => {
+  it("discloses rules disabled via config", () => {
+    const config = { ...defaultConfig() };
+    config.rules.ask = { "young-package": false };
+    expect(policyNotes(config)).toEqual([
+      '- rule "young-package" disabled by config (default: ask) — its findings are suppressed',
+    ]);
+  });
+
+  it("stays silent under the default policy", () => {
+    expect(policyNotes({ ...defaultConfig() })).toEqual([]);
   });
 });
 

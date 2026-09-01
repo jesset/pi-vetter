@@ -26,6 +26,13 @@ describe("renderReport", () => {
     expect(text).toContain("✓ `osv:clean` — clean");
   });
 
+  it("scopes the ALLOW verdict wording (#42)", () => {
+    const allow = renderReport(report("ALLOW"));
+    expect(allow).toContain("does not prove the package is safe");
+    expect(renderReport(report("ASK"))).not.toContain("does not prove the package is safe");
+    expect(renderReport(report("DENY"))).not.toContain("does not prove the package is safe");
+  });
+
   it("notes capped verdicts and lifecycle warnings", () => {
     const r = report("ASK");
     r.capped = true;

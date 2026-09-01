@@ -121,6 +121,11 @@ export function filterEnabled(findings: Finding[], config: VetterConfig): Findin
   return findings.filter((f) => isRuleEnabled(config, f.ruleId));
 }
 
+/** Rules the user switched off (#42): the report must disclose this policy. */
+export function disabledRules(config: VetterConfig): RuleId[] {
+  return (Object.keys(RULES) as RuleId[]).filter((id) => !isRuleEnabled(config, id));
+}
+
 export interface AggregateResult {
   verdict: Verdict;
   capped: boolean;

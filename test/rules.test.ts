@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { aggregate, deriveFindings, filterEnabled, RULES } from "../src/core/rules.ts";
+import {
+  aggregate,
+  deriveFindings,
+  disabledRules,
+  filterEnabled,
+  RULES,
+} from "../src/core/rules.ts";
 import type { Evidence, Finding, VetterConfig } from "../src/core/types.ts";
 
 function askFinding(ruleId: keyof typeof RULES = "young-package"): Finding {
@@ -80,6 +86,21 @@ describe("deriveFindings", () => {
       { scanner: "static", key: "static:dependency-risk", status: "fail", detail: "x" },
     ]);
     expect(findings[0]?.ruleId).toBe("transitive-risk");
+  });
+});
+
+describe("disabledRules (#42)", () => {
+  it("lists rules disabled via config with their default kind", () => {
+    const config = {
+      ...{ rules: { deny: {}, ask: { "young-package": false, obfuscation: false } } },
+    } as unknown as VetterConfig;
+    const disabled = disabledRules(config);
+    expect(disabled).toContain("young-package");
+    expect(disabled).toContain("obfuscation");
+  });
+
+  it("is empty with the default policy", () => {
+    expect(disabledRules({ rules: { deny: {}, ask: {} } } as unknown as VetterConfig)).toEqual([]);
   });
 });
 
