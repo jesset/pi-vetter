@@ -4,6 +4,8 @@ import { scanPatterns } from "./patterns.ts";
 /**
  * L2 static analysis. A pattern hit that also exists in the baseline is
  * pre-existing behavior (info); only new hits fail (behavior-change-first).
+ * Dynamic code execution (#40) is the install-scenario exception: with no
+ * baseline to vouch for pre-existing behaviour, eval/dynamic-module hits ask.
  */
 export const staticScanner: SecurityScanner = {
   name: "static",
@@ -57,29 +59,45 @@ export const staticScanner: SecurityScanner = {
         ctx.artifacts.dependencySkipped > 0
           ? ` (+${ctx.artifacts.dependencySkipped} skipped: fetch/verify failed)`
           : "";
-      const hits: string[] = [];
+      // #41 severity ladder: trusted-extension → trusted-dependency → malicious
+      // transitive is the canonical npm attack path, so risky labels inside
+      // dependency tarballs escalate; ordinary Node.js API usage stays info.
+      const riskHits: string[] = [];
+      const infoHits: string[] = [];
       for (const [key, depFiles] of ctx.artifacts.dependencyFiles) {
         const dep = scanPatterns(depFiles);
-        const summary: Record<string, string[]> = {
-          credential: dep.credentials,
-          obfuscation: dep.obfuscation,
-          "prompt-injection": dep.promptInjection,
-          "child-process": dep.childProcess,
-          eval: dep.evalFamily,
-        };
-        for (const [label, list] of Object.entries(summary)) {
-          if (list.length > 0) hits.push(`${key}: ${label} x${list.length}`);
+        const summary: Array<{ label: string; hits: string[]; risky: boolean }> = [
+          { label: "credential", hits: dep.credentials, risky: true },
+          { label: "obfuscation", hits: dep.obfuscation, risky: true },
+          { label: "prompt-injection", hits: dep.promptInjection, risky: true },
+          { label: "eval", hits: dep.evalFamily, risky: true },
+          { label: "dynamic-module", hits: dep.dynamicModule, risky: true },
+          { label: "child-process", hits: dep.childProcess, risky: false },
+        ];
+        for (const { label, hits, risky } of summary) {
+          if (hits.length === 0) continue;
+          (risky ? riskHits : infoHits).push(`${key}: ${label} x${hits.length}`);
         }
       }
-      if (hits.length > 0) {
+      if (riskHits.length > 0) {
+        evidences.push({
+          scanner: "static",
+          key: "static:dependency-risk",
+          status: "fail",
+          detail: `risky pattern hits inside dependency tarballs: ${riskHits.slice(0, 6).join("; ")}${riskHits.length > 6 ? ` (+${riskHits.length - 6} more)` : ""}${skipped}`,
+          data: riskHits,
+        });
+      }
+      if (infoHits.length > 0) {
         evidences.push({
           scanner: "static",
           key: "static:dependency-hits",
           status: "info",
-          detail: `pattern hits inside dependency tarballs (informational in MVP): ${hits.slice(0, 6).join("; ")}${hits.length > 6 ? ` (+${hits.length - 6} more)` : ""}${skipped}`,
-          data: hits,
+          detail: `informational pattern hits inside dependency tarballs: ${infoHits.slice(0, 6).join("; ")}${infoHits.length > 6 ? ` (+${infoHits.length - 6} more)` : ""}${skipped}`,
+          data: infoHits,
         });
-      } else {
+      }
+      if (riskHits.length === 0 && infoHits.length === 0) {
         evidences.push({
           scanner: "static",
           key: "static:dependencies-clean",
@@ -89,13 +107,26 @@ export const staticScanner: SecurityScanner = {
       }
     }
 
-    if (candidate.evalFamily.length > 0) {
+    // #40: dynamic code execution asks by default in the install scenario
+    // (no baseline to vouch for pre-existing behaviour); in the update
+    // scenario the behavior-change-first gate applies — pre-existing hits
+    // are info, new hits fail.
+    const dynamicCode = [
+      ["static:eval", candidate.evalFamily, baseline?.evalFamily],
+      ["static:dynamic-module", candidate.dynamicModule, baseline?.dynamicModule],
+    ] as const;
+    for (const [key, hits, baselineHits] of dynamicCode) {
+      if (hits.length === 0) continue;
+      const isNew = !baseline || baselineHits === undefined || baselineHits.length === 0;
+      const label = key.replace("static:", "");
       evidences.push({
         scanner: "static",
-        key: "static:eval",
-        status: "info",
-        detail: `eval-family markers present (${candidate.evalFamily.length}); informational, no verdict rule mapped`,
-        data: candidate.evalFamily,
+        key,
+        status: isNew ? "fail" : "info",
+        detail: isNew
+          ? `${label} found (${hits.length}): ${hits.slice(0, 3).join("; ")}`
+          : `pre-existing ${label} markers (${hits.length}), unchanged signal`,
+        data: hits,
       });
     }
 

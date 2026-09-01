@@ -22,6 +22,7 @@ export function defaultConfig(): VetterConfig {
       socket: { enabled: false },
     },
     rules: { deny: {}, ask: {} },
+    provenance: { required: false },
     cache: { enabled: true, ttlHours: 24 },
     score: { weights: {} },
     network: { timeoutMs: 30_000 },

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { aggregate, deriveFindings, filterEnabled, RULES } from "../src/core/rules.ts";
+import {
+  aggregate,
+  deriveFindings,
+  disabledRules,
+  filterEnabled,
+  RULES,
+} from "../src/core/rules.ts";
 import type { Evidence, Finding, VetterConfig } from "../src/core/types.ts";
 
 function askFinding(ruleId: keyof typeof RULES = "young-package"): Finding {
@@ -63,18 +69,77 @@ describe("deriveFindings", () => {
     ]);
     expect(findings[0]?.ruleId).toBe("socket-flagged");
   });
+
+  it("maps eval and dynamic-module hits to dynamic-code-execution (#40)", () => {
+    const findings = deriveFindings([
+      { scanner: "static", key: "static:eval", status: "fail", detail: "eval" },
+      { scanner: "static", key: "static:dynamic-module", status: "fail", detail: "join" },
+    ]);
+    expect(findings.map((f) => f.ruleId)).toEqual([
+      "dynamic-code-execution",
+      "dynamic-code-execution",
+    ]);
+  });
+
+  it("maps transitive dependency risk to the transitive-risk rule (#41)", () => {
+    const findings = deriveFindings([
+      { scanner: "static", key: "static:dependency-risk", status: "fail", detail: "x" },
+    ]);
+    expect(findings[0]?.ruleId).toBe("transitive-risk");
+  });
+  it("maps provenance:missing to the provenance-missing rule (#44)", () => {
+    const findings = deriveFindings([
+      { scanner: "provenance", key: "provenance:missing", status: "fail", detail: "x" },
+    ]);
+    expect(findings[0]?.ruleId).toBe("provenance-missing");
+  });
+});
+
+describe("disabledRules (#42)", () => {
+  it("lists rules disabled via config with their default kind", () => {
+    const config = {
+      ...{ rules: { deny: {}, ask: { "young-package": false, obfuscation: false } } },
+    } as unknown as VetterConfig;
+    const disabled = disabledRules(config);
+    expect(disabled).toContain("young-package");
+    expect(disabled).toContain("obfuscation");
+  });
+
+  it("is empty with the default policy", () => {
+    expect(disabledRules({ rules: { deny: {}, ask: {} } } as unknown as VetterConfig)).toEqual([]);
+  });
 });
 
 describe("filterEnabled", () => {
   const config: VetterConfig = {
     scanners: {},
     rules: { deny: {}, ask: { "young-package": false } },
+    provenance: { required: false },
     cache: { enabled: true, ttlHours: 24 },
     score: { weights: {} },
     network: { timeoutMs: 30_000 },
     install: { pinOnInstall: false },
     dependencies: { enabled: false, maxDepth: 2, maxPackages: 20 },
   };
+
+  it("drops findings of the audit-wave rules when disabled (#40/#41/#44)", () => {
+    const disabled = {
+      ...config,
+      rules: {
+        deny: {},
+        ask: { "dynamic-code-execution": false, "transitive-risk": false },
+      },
+    };
+    const kept = filterEnabled(
+      [
+        askFinding("dynamic-code-execution"),
+        askFinding("transitive-risk"),
+        askFinding("young-package"),
+      ],
+      disabled,
+    );
+    expect(kept.map((f) => f.ruleId)).toEqual(["young-package"]);
+  });
 
   it("drops findings whose rule is disabled", () => {
     const kept = filterEnabled([askFinding("young-package"), askFinding("rapid-release")], config);

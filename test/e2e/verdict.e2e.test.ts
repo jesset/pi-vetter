@@ -47,6 +47,25 @@ describe("e2e: verdict derivation & presentation", () => {
     );
   });
 
+  it("asks on eval-family code in the candidate (#40)", async () => {
+    const pkg: FixturePackage = {
+      name: "eval-pkg",
+      versions: [
+        {
+          version: "1.1.0",
+          files: [{ path: "index.js", content: "module.exports = eval(process.argv[2]);\n" }],
+        },
+      ],
+    };
+    await withHarness({ fixtures: [pkg] }, async ({ deps }) => {
+      const { reports } = await runVet(deps, "npm:eval-pkg");
+      const report = byName(reports, "eval-pkg");
+      expect(report?.verdict).toBe("ASK");
+      expect(report?.findings.map((f) => f.ruleId)).toContain("dynamic-code-execution");
+      expect(renderReports(reports)).toContain("**Verdict: ASK**");
+    });
+  });
+
   it("denies when OSV lists the candidate as malicious", async () => {
     const pkg: FixturePackage = {
       name: "evil-pkg",
@@ -110,7 +129,7 @@ describe("e2e: verdict derivation & presentation", () => {
     });
   });
 
-  it("attributes deep-scan pattern hits to the dependency without failing the candidate", async () => {
+  it("escalates risky deep-scan hits to an ASK verdict attributed per dependency (#41)", async () => {
     const host: FixturePackage = {
       name: "host-pkg",
       versions: [
@@ -140,11 +159,12 @@ describe("e2e: verdict derivation & presentation", () => {
         const { reports, notes } = await runVet(deps, "npm:host-pkg");
         expect(notes).toEqual([]);
         const report = byName(reports, "host-pkg");
-        // the hit is informational and attributed per dependency
-        const hit = report?.evidences.find((e) => e.key === "static:dependency-hits");
-        expect(hit?.status).toBe("info");
+        // risky transitive hits fail and drive the verdict, still attributed per dependency
+        const hit = report?.evidences.find((e) => e.key === "static:dependency-risk");
+        expect(hit?.status).toBe("fail");
         expect(hit?.detail).toContain("sketchy-dep@1.0.4: credential");
-        expect(report?.verdict).toBe("ALLOW");
+        expect(report?.verdict).toBe("ASK");
+        expect(report?.findings.map((f) => f.ruleId)).toContain("transitive-risk");
       },
     );
   });

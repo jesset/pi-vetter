@@ -25,6 +25,11 @@ export const RULES: Record<RuleId, RuleDef> = {
     severity: "critical",
     description: "Provenance/attestation missing or contradicting the declared repository",
   },
+  "provenance-missing": {
+    kind: "ask",
+    severity: "medium",
+    description: "No npm attestations published for the version (provenance.required policy)",
+  },
   "vt-detections": {
     kind: "deny",
     severity: "critical",
@@ -71,6 +76,18 @@ export const RULES: Record<RuleId, RuleDef> = {
     severity: "high",
     description: "Reads credential paths or secret environment variables",
   },
+  "dynamic-code-execution": {
+    kind: "ask",
+    severity: "medium",
+    description:
+      "eval/new Function/vm family, or dynamic module resolution (concatenated, decoded or variable require/import)",
+  },
+  "transitive-risk": {
+    kind: "ask",
+    severity: "high",
+    description:
+      "Risky pattern hits (credentials, obfuscation, prompt injection, dynamic code) inside a scanned dependency tarball",
+  },
   obfuscation: {
     kind: "ask",
     severity: "high",
@@ -109,6 +126,11 @@ export function filterEnabled(findings: Finding[], config: VetterConfig): Findin
   return findings.filter((f) => isRuleEnabled(config, f.ruleId));
 }
 
+/** Rules the user switched off (#42): the report must disclose this policy. */
+export function disabledRules(config: VetterConfig): RuleId[] {
+  return (Object.keys(RULES) as RuleId[]).filter((id) => !isRuleEnabled(config, id));
+}
+
 export interface AggregateResult {
   verdict: Verdict;
   capped: boolean;
@@ -139,6 +161,7 @@ export function hasIncomplete(evidences: Evidence[]): boolean {
 const RULE_EVIDENCE_KEYS: Record<string, RuleId> = {
   "osv:malicious": "malicious-package",
   "provenance:conflict": "provenance-conflict",
+  "provenance:missing": "provenance-missing",
   "virustotal:detections": "vt-detections",
   "osv:vulnerability": "known-vulnerability",
   "socket:alerts": "socket-flagged",
@@ -148,6 +171,9 @@ const RULE_EVIDENCE_KEYS: Record<string, RuleId> = {
   "diff:new-endpoint": "new-network-endpoint",
   "diff:new-child-process": "new-child-process",
   "static:credential-access": "credential-access",
+  "static:eval": "dynamic-code-execution",
+  "static:dynamic-module": "dynamic-code-execution",
+  "static:dependency-risk": "transitive-risk",
   "static:obfuscation": "obfuscation",
   "static:prompt-injection": "prompt-injection-marker",
   "metadata:young-package": "young-package",

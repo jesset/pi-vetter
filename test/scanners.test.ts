@@ -348,7 +348,7 @@ describe("static scanner", () => {
     expect(result.evidences.find((e) => e.key === "static:prompt-injection")?.status).toBe("fail");
   });
 
-  it("reports dependency-tarball hits as informational evidence with attribution", async () => {
+  it("escalates risky dependency-tarball hits to fail evidence (#41)", async () => {
     const ctx0 = ctx({
       candidateFiles: files([["index.js", "module.exports = 1;\n"]]),
     });
@@ -356,10 +356,25 @@ describe("static scanner", () => {
       ["left-pad@1.0.0", files([["pad.js", "const t = process.env.GITHUB_TOKEN;\n"]])],
     ]);
     const result = await staticScanner.scan(ctx0);
-    const ev = result.evidences.find((e) => e.key === "static:dependency-hits");
-    expect(ev?.status).toBe("info");
+    const ev = result.evidences.find((e) => e.key === "static:dependency-risk");
+    expect(ev?.status).toBe("fail");
     expect(ev?.detail).toContain("left-pad@1.0.0");
     expect(ev?.detail).toContain("credential");
+  });
+
+  it("keeps child-process-only dependency hits informational (#41)", async () => {
+    const ctx0 = ctx({
+      candidateFiles: files([["index.js", "module.exports = 1;\n"]]),
+    });
+    ctx0.artifacts.dependencyFiles = new Map([
+      ["runner@1.0.0", files([["run.js", 'require("child_process").execSync("ls");\n']])],
+    ]);
+    const result = await staticScanner.scan(ctx0);
+    expect(result.evidences.find((e) => e.key === "static:dependency-risk")).toBeUndefined();
+    const ev = result.evidences.find((e) => e.key === "static:dependency-hits");
+    expect(ev?.status).toBe("info");
+    expect(ev?.detail).toContain("runner@1.0.0");
+    expect(ev?.detail).toContain("child-process");
   });
 
   it("marks prompt injection and obfuscation", async () => {
@@ -375,12 +390,57 @@ describe("static scanner", () => {
     expect(result.evidences.find((e) => e.key === "static:prompt-injection")).toBeUndefined();
   });
 
-  it("reports eval-family hits as info (no rule mapped)", async () => {
+  it("escalates eval-family hits to fail (#40)", async () => {
     const cand = files([["x.js", "eval('1');\n"]]);
     const result = await staticScanner.scan(
       ctx({ candidateFiles: cand, baselineFiles: new Map() }),
     );
+    expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("fail");
+  });
+
+  it("keeps eval-family a hard signal in the install scenario (#40)", async () => {
+    const cand = files([["x.js", "new Function('return 1');\n"]]);
+    const result = await staticScanner.scan(
+      ctx({ candidateFiles: cand, baselineFiles: null, baselineVersion: null }),
+    );
+    expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("fail");
+  });
+
+  it("gates pre-existing eval hits to info in the update scenario (behavior-change-first)", async () => {
+    const code = files([["x.js", "eval('1');\n"]]);
+    const result = await staticScanner.scan(ctx({ candidateFiles: code, baselineFiles: code }));
     expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("info");
+    expect(result.evidences.find((e) => e.key === "static:eval")?.detail).toContain(
+      "unchanged signal",
+    );
+  });
+
+  it.each([
+    ["array-join require", 'const m = require(["child", "_process"].join(""));\n'],
+    ["string-concat require", 'const m = require("child" + "_process");\n'],
+    [
+      "base64-decoded require",
+      'const m = require(Buffer.from("Y2hpbGRfcHJvY2Vzcw==", "base64").toString());\n',
+    ],
+    ["dynamic variable import", "const mod = await import(moduleName);\n"],
+    ["dynamic computed import", 'const mod = await import(getUrl() + ".js");\n'],
+    ["commented dynamic import", "const mod = await import(/* webpackIgnore: true */ target);\n"],
+  ])("detects %s (#40)", async (_label, content) => {
+    const cand = files([["x.js", content]]);
+    const result = await staticScanner.scan(
+      ctx({ candidateFiles: cand, baselineFiles: new Map() }),
+    );
+    const ev = result.evidences.find((e) => e.key === "static:dynamic-module");
+    expect(ev?.status).toBe("fail");
+    expect(ev?.detail).toContain("x.js");
+  });
+
+  it("does not flag static literal imports as dynamic-module", async () => {
+    const cand = files([["x.js", 'const mod = await import("./local.js");\n']]);
+    const result = await staticScanner.scan(
+      ctx({ candidateFiles: cand, baselineFiles: new Map() }),
+    );
+    expect(result.evidences.find((e) => e.key === "static:dynamic-module")).toBeUndefined();
   });
 });
 

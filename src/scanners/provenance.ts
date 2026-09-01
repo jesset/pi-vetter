@@ -159,6 +159,8 @@ function verifyBundles(bundles: BundleJson[]): VerificationOutcome {
 export function createProvenanceScanner(options?: {
   timeoutMs?: number;
   fetchImpl?: FetchLike;
+  /** #44: fail (ASK-level rule) when a version publishes no attestations. */
+  required?: boolean;
 }): SecurityScanner {
   const timeoutMs = options?.timeoutMs ?? 10_000;
   const doFetch = options?.fetchImpl ?? ((url: string, init?: RequestInit) => fetch(url, init));
@@ -174,12 +176,20 @@ export function createProvenanceScanner(options?: {
           scanner: "provenance",
           status: "ok",
           evidences: [
-            {
-              scanner: "provenance",
-              key: "provenance:none",
-              status: "info",
-              detail: "no npm attestations published for this version (common)",
-            },
+            options?.required
+              ? {
+                  scanner: "provenance",
+                  key: "provenance:missing",
+                  status: "fail",
+                  detail:
+                    "no npm attestations published for this version (provenance.required is enabled)",
+                }
+              : {
+                  scanner: "provenance",
+                  key: "provenance:none",
+                  status: "info",
+                  detail: "no npm attestations published for this version (common)",
+                },
           ],
         };
       }

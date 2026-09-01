@@ -40,14 +40,23 @@ describe("e2e: /vet-install gated install flow", () => {
       },
       async ({ deps, registry }) => {
         void registry;
-        const exec = vi.fn(async () => ({ stdout: "", stderr: "", code: 0 }));
+        const exec = vi.fn(async (cmd: string, _args?: string[]) => ({
+          stdout:
+            cmd === "npm"
+              ? `${process.env.PI_VETTER_NPM_REGISTRY ?? "https://registry.npmjs.org/"}\n`
+              : "",
+          stderr: "",
+          code: 0,
+        }));
         const unpin = vi.fn();
         const result = await runVetInstall(
           { ...deps, exec, pinOnInstall: false, unpin },
           "npm:quiet-pkg",
           fakeCtx(async () => true),
         );
-        expect(exec).toHaveBeenCalledExactlyOnceWith("pi", ["install", "npm:quiet-pkg@1.1.0"]);
+        expect(exec.mock.calls.filter((c) => c[0] === "pi").map((c) => [c[0], c[1]])).toEqual([
+          ["pi", ["install", "npm:quiet-pkg@1.1.0"]],
+        ]);
         expect(unpin).toHaveBeenCalledWith("quiet-pkg", "1.1.0");
         expect(result.content).toContain("✓ quiet-pkg@1.1.0 installed");
         expect(result.content).toContain("to pin: pi install npm:quiet-pkg@1.1.0");
@@ -70,7 +79,14 @@ describe("e2e: /vet-install gated install flow", () => {
         ],
       },
       async ({ deps, registry }) => {
-        const exec = vi.fn(async () => ({ stdout: "", stderr: "", code: 0 }));
+        const exec = vi.fn(async (cmd: string, _args?: string[]) => ({
+          stdout:
+            cmd === "npm"
+              ? `${process.env.PI_VETTER_NPM_REGISTRY ?? "https://registry.npmjs.org/"}\n`
+              : "",
+          stderr: "",
+          code: 0,
+        }));
         const unpin = vi.fn();
         const result = await runVetInstall(
           { ...deps, exec, pinOnInstall: false, unpin },
@@ -84,7 +100,7 @@ describe("e2e: /vet-install gated install flow", () => {
           }),
         );
 
-        expect(exec).not.toHaveBeenCalled();
+        expect(exec.mock.calls.filter((c) => c[0] === "pi").map((c) => [c[0], c[1]])).toEqual([]);
         expect(unpin).not.toHaveBeenCalled();
         expect(result.content).toContain("⚠ quiet-pkg@1.1.0 skipped");
         expect(result.content).toContain("registry integrity changed after vetting");

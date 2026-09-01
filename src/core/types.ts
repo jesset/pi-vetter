@@ -15,6 +15,7 @@ export type ScannerName =
 export type RuleId =
   | "malicious-package"
   | "provenance-conflict"
+  | "provenance-missing"
   | "vt-detections"
   | "known-vulnerability"
   | "socket-flagged"
@@ -24,6 +25,8 @@ export type RuleId =
   | "new-network-endpoint"
   | "new-child-process"
   | "credential-access"
+  | "dynamic-code-execution"
+  | "transitive-risk"
   | "obfuscation"
   | "prompt-injection-marker"
   | "young-package"
@@ -151,6 +154,8 @@ export interface ScannerConfig {
 export interface VetterConfig {
   scanners: Partial<Record<ScannerName, ScannerConfig>>;
   rules: { deny: Partial<Record<string, boolean>>; ask: Partial<Record<string, boolean>> };
+  /** #44: when true, a version without npm attestations escalates to ASK. */
+  provenance: { required: boolean };
   cache: { enabled: boolean; ttlHours: number };
   score: { weights: Partial<Record<string, number>> };
   network: { timeoutMs: number };

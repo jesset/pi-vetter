@@ -7,6 +7,7 @@ import {
   evaluate,
 } from "../core/engine.ts";
 import { runPool } from "../core/pool.ts";
+import { disabledRules, RULES } from "../core/rules.ts";
 import type {
   Artifacts,
   EvaluationReport,
@@ -177,6 +178,14 @@ export function scannerGapNotes(config: VetterConfig): string[] {
   );
 }
 
+/** #42: rules the user disabled shape the verdict; the report must say so. */
+export function policyNotes(config: VetterConfig): string[] {
+  return disabledRules(config).map(
+    (ruleId) =>
+      `- rule "${ruleId}" disabled by config (default: ${RULES[ruleId].kind}) — its findings are suppressed`,
+  );
+}
+
 /** Parse an `npm:<pkg>[@<version>]` spec into its name and optional version. */
 function parseSpec(spec: string): { name: string; version?: string } {
   const body = spec.slice("npm:".length);
@@ -281,7 +290,7 @@ export async function runVet(
   const parsed = parseArgs(rawArgs);
   if ("error" in parsed) throw new Error(parsed.error);
   const { targets, notes: resolvedNotes } = await resolveTargets(deps, parsed.specs, progress);
-  const notes = [...scannerGapNotes(deps.config), ...resolvedNotes];
+  const notes = [...scannerGapNotes(deps.config), ...policyNotes(deps.config), ...resolvedNotes];
   progress?.start(targets.map((t) => t.candidate.name));
 
   const engineDeps: EngineDeps = {
