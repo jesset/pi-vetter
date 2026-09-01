@@ -195,7 +195,9 @@ describe("e2e: /vet-install gated install flow", () => {
 
         expect(exec.mock.calls.filter((c) => c[0] === "pi").map((c) => [c[0], c[1]])).toEqual([]);
         expect(unpin).not.toHaveBeenCalled();
-        expect(result.content).toContain("⚠ quiet-pkg@1.1.0 registry integrity changed after vetting");
+        expect(result.content).toContain(
+          "⚠ quiet-pkg@1.1.0 registry integrity changed after vetting",
+        );
         expect(result.content).toContain("registry integrity changed after vetting");
         expect(result.content).toContain("re-run /vet");
       },
