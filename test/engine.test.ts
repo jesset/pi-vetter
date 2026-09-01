@@ -153,7 +153,73 @@ describe("evaluate", () => {
     };
     await evaluate(makeDeps({ scanners: [osv], cache }), { candidate, baseline: null });
     expect(osv.scan).not.toHaveBeenCalled();
-    expect(cache.get).toHaveBeenCalledWith("osv", "pkg@2.0.0");
+    expect(cache.get).toHaveBeenCalledWith(
+      "osv",
+      expect.stringMatching(/^pkg@2\.0\.0:install#[0-9a-f]{12}$/),
+    );
+  });
+
+  describe("cache identity binds artifact + baseline (#37)", () => {
+    const ok = (): ScanResult => ({ scanner: "osv", status: "ok", evidences: [] });
+
+    function run() {
+      const cache: CacheStore = {
+        get: vi.fn(() => Promise.resolve(null)),
+        set: vi.fn(() => Promise.resolve()),
+      };
+      const osv = makeScanner("osv", ok());
+      return { cache, osv };
+    }
+
+    const keysOf = (cache: CacheStore): string[] =>
+      vi.mocked(cache.get).mock.calls.map((c) => c[1]);
+
+    it("separates install-scenario results from update-scenario results", async () => {
+      const { cache, osv } = run();
+      const deps = makeDeps({ scanners: [osv], cache });
+      await evaluate(deps, { candidate, baseline: null });
+      await evaluate(deps, { candidate, baseline: { name: "pkg", version: "1.0.0" } });
+      const keys = keysOf(cache);
+      expect(keys).toHaveLength(2);
+      expect(keys[0]).toMatch(/^pkg@2\.0\.0:install#/);
+      expect(keys[1]).toMatch(/^pkg@2\.0\.0←1\.0\.0#/);
+    });
+
+    it("separates results across different baselines", async () => {
+      const { cache, osv } = run();
+      const deps = makeDeps({ scanners: [osv], cache });
+      await evaluate(deps, { candidate, baseline: { name: "pkg", version: "1.0.0" } });
+      await evaluate(deps, { candidate, baseline: { name: "pkg", version: "1.5.0" } });
+      const keys = keysOf(cache);
+      expect(keys[0]).not.toBe(keys[1]);
+      expect(keys[1]).toMatch(/^pkg@2\.0\.0←1\.5\.0#/);
+    });
+
+    it("separates results when the candidate artifact integrity differs", async () => {
+      const { cache, osv } = run();
+      const good = makeArtifacts();
+      const other: Artifacts = { ...makeArtifacts(), candidateIntegrity: "sha512-zzz" };
+      const artifacts = [good, other];
+      let next = 0;
+      const deps = makeDeps({
+        scanners: [osv],
+        cache,
+        buildArtifacts: () => Promise.resolve(artifacts[next++] as Artifacts),
+      });
+      await evaluate(deps, { candidate, baseline: null });
+      await evaluate(deps, { candidate, baseline: null });
+      const keys = keysOf(cache);
+      expect(keys[0]).not.toBe(keys[1]);
+    });
+
+    it("reuses the same key for an identical target", async () => {
+      const { cache, osv } = run();
+      const deps = makeDeps({ scanners: [osv], cache });
+      await evaluate(deps, { candidate, baseline: { name: "pkg", version: "1.0.0" } });
+      await evaluate(deps, { candidate, baseline: { name: "pkg", version: "1.0.0" } });
+      const keys = keysOf(cache);
+      expect(keys[0]).toBe(keys[1]);
+    });
   });
 
   it("does not cache failed scanner results", async () => {

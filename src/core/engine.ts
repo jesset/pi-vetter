@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { aggregate, deriveFindings, filterEnabled, hasIncomplete } from "./rules.ts";
 import { riskScore } from "./score.ts";
 import type {
@@ -44,8 +45,22 @@ function incompleteEvidence(scanner: Evidence["scanner"], result: ScanResult): E
   };
 }
 
-function cacheKey(candidate: Candidate): string {
-  return `${candidate.name}@${candidate.version}`;
+/**
+ * Cache identity = candidate artifact + baseline context (#37): baseline-aware
+ * scanners (diff/static/osv) produce scenario-dependent results, so name@version
+ * alone would cross-contaminate install vs update runs; the artifact digest
+ * keeps a mirror serving different bytes from hitting a stale entry.
+ */
+function cacheKey(ctx: ScannerContext): string {
+  const { candidate, baseline, artifacts } = ctx;
+  const digest = createHash("sha256")
+    .update(artifacts.candidateIntegrity)
+    .digest("hex")
+    .slice(0, 12);
+  const base = baseline
+    ? `${candidate.name}@${candidate.version}←${baseline.version}`
+    : `${candidate.name}@${candidate.version}:install`;
+  return `${base}#${digest}`;
 }
 
 function ageDays(packument: Artifacts["candidatePackument"], now = Date.now()): number | null {
@@ -67,7 +82,7 @@ export async function runScanner(
   scanner: SecurityScanner,
   ctx: ScannerContext,
 ): Promise<ScanResult> {
-  const key = cacheKey(ctx.candidate);
+  const key = cacheKey(ctx);
   if (deps.cache) {
     const cached = await deps.cache.get(scanner.name, key);
     if (cached) return cached;
