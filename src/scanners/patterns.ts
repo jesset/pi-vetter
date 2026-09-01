@@ -19,7 +19,7 @@ const PATTERNS: Array<[keyof Omit<PatternSummary, "endpointHosts" | "scannedFile
     ["evalFamily", /\beval\s*\(|\bnew\s+Function\s*\(|vm\.runIn(?:Context|NewContext)\s*\(/],
     [
       "dynamicModule",
-      /require\(\s*\[[^\]]*\]\s*\.\s*join\s*\(|require\(\s*["'][^"']*["']\s*\+|require\(\s*Buffer\.from\s*\(\s*["'][A-Za-z0-9+/=]+["']\s*,\s*["']base64["']|\bimport\s*\(\s*[A-Za-z_$][\w$.()\s+]*\)/,
+      /require\(\s*\[[^\]]*\]\s*\.\s*join\s*\(|require\(\s*["'][^"']*["']\s*\+|require\(\s*Buffer\.from\s*\(\s*["'][A-Za-z0-9+/=]+["']\s*,\s*["']base64["']|\bimport\s*\(\s*[A-Za-z_$/*][^"']*[^"')]\)/,
     ],
     [
       "childProcess",

@@ -406,6 +406,15 @@ describe("static scanner", () => {
     expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("fail");
   });
 
+  it("gates pre-existing eval hits to info in the update scenario (behavior-change-first)", async () => {
+    const code = files([["x.js", "eval('1');\n"]]);
+    const result = await staticScanner.scan(ctx({ candidateFiles: code, baselineFiles: code }));
+    expect(result.evidences.find((e) => e.key === "static:eval")?.status).toBe("info");
+    expect(result.evidences.find((e) => e.key === "static:eval")?.detail).toContain(
+      "unchanged signal",
+    );
+  });
+
   it.each([
     ["array-join require", 'const m = require(["child", "_process"].join(""));\n'],
     ["string-concat require", 'const m = require("child" + "_process");\n'],
@@ -415,6 +424,7 @@ describe("static scanner", () => {
     ],
     ["dynamic variable import", "const mod = await import(moduleName);\n"],
     ["dynamic computed import", 'const mod = await import(getUrl() + ".js");\n'],
+    ["commented dynamic import", "const mod = await import(/* webpackIgnore: true */ target);\n"],
   ])("detects %s (#40)", async (_label, content) => {
     const cand = files([["x.js", content]]);
     const result = await staticScanner.scan(

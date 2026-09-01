@@ -71,6 +71,29 @@ describe("provenance-required policy (#44)", () => {
     expect(result.evidences.find((e) => e.key === "provenance:none")).toBeUndefined();
   });
 
+  it("conflicting attestation behaviour is unchanged when required", async () => {
+    const tampered = sampleAttestations() as {
+      attestations: Array<{
+        bundle: {
+          dsseEnvelope?: { payload?: string; payloadType?: string; signatures?: unknown[] };
+        };
+      }>;
+    };
+    const target = tampered.attestations[1];
+    if (!target) throw new Error("fixture missing bundle");
+    target.bundle.dsseEnvelope = {
+      ...target.bundle.dsseEnvelope,
+      payload: Buffer.from("tampered").toString("base64"),
+    };
+    const scanner = createProvenanceScanner({
+      fetchImpl: vi.fn(() => Promise.resolve(json(tampered))),
+      required: true,
+    });
+    const result = await scanner.scan(ctx());
+    expect(result.evidences.find((e) => e.key === "provenance:conflict")?.status).toBe("fail");
+    expect(result.evidences.find((e) => e.key === "provenance:missing")).toBeUndefined();
+  });
+
   it("verified attestation behaviour is unchanged when required", async () => {
     const scanner = createProvenanceScanner({
       fetchImpl: vi.fn(() => Promise.resolve(json(sampleAttestations()))),

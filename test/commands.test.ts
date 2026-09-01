@@ -344,6 +344,32 @@ describe("installApproved registry guard (#43)", () => {
     expect(exec).not.toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
   });
 
+  it("skips conservatively when the probe exits non-zero", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify({})))),
+    );
+    const exec = vi.fn(() => Promise.resolve({ stdout: "", stderr: "boom", code: 1 }));
+    const outcomes = await installApproved(exec as never, [report()]);
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "failed" });
+    expect(outcomes[0]?.message).toContain("exited 1");
+    expect(exec).not.toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+  });
+
+  it("skips conservatively when the probe returns empty output", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify({})))),
+    );
+    const exec = vi.fn(() => Promise.resolve({ stdout: "  \n", stderr: "", code: 0 }));
+    const outcomes = await installApproved(exec as never, [report()]);
+    vi.unstubAllGlobals();
+    expect(outcomes[0]).toMatchObject({ status: "failed" });
+    expect(outcomes[0]?.message).toContain("empty output");
+    expect(exec).not.toHaveBeenCalledWith("pi", ["install", "npm:pkg@2.0.0"]);
+  });
+
   it("installs normally when both registries agree", async () => {
     vi.stubGlobal(
       "fetch",

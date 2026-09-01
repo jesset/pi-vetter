@@ -122,6 +122,25 @@ describe("filterEnabled", () => {
     dependencies: { enabled: false, maxDepth: 2, maxPackages: 20 },
   };
 
+  it("drops findings of the audit-wave rules when disabled (#40/#41/#44)", () => {
+    const disabled = {
+      ...config,
+      rules: {
+        deny: {},
+        ask: { "dynamic-code-execution": false, "transitive-risk": false },
+      },
+    };
+    const kept = filterEnabled(
+      [
+        askFinding("dynamic-code-execution"),
+        askFinding("transitive-risk"),
+        askFinding("young-package"),
+      ],
+      disabled,
+    );
+    expect(kept.map((f) => f.ruleId)).toEqual(["young-package"]);
+  });
+
   it("drops findings whose rule is disabled", () => {
     const kept = filterEnabled([askFinding("young-package"), askFinding("rapid-release")], config);
     expect(kept.map((f) => f.ruleId)).toEqual(["rapid-release"]);

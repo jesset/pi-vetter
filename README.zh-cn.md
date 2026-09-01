@@ -46,7 +46,7 @@ fail-closed：任一**已启用**的扫描器失败或超时，判定封顶为 A
 | L0 | `metadata` | npm registry packument：维护者（本地快照比对）、包龄、发布节奏、废弃标记、下载量 |
 | L1 | `osv` | osv.dev querybatch —— 覆盖 CVE + GitHub Advisory (GHSA) + OpenSSF 恶意包 (MAL-)；新增依赖也一并查询，且按 npm 实际会解析的版本（range 内最新已发布版本）查询 |
 | L1 | `provenance` | npm attestations：对 vendored 公共 TrustedRoot 做完整 sigstore 签名链验证 + 声明仓库矛盾检测；验证通过产出 `provenance:verified`。缺失 attestations 默认为 info，开启 `provenance.required` 后升为 ASK |
-| L2 | `static` | 代码文件模式扫描：凭据访问、混淆特征、prompt-injection 标记、eval 族（两种场景均 ASK）以及动态模块解析（拼接 / base64 解码 / 变量 require-import）；既有命中为 info，新命中为 finding；install 场景（无基线）凭据/混淆命中降为 info，prompt-injection 始终为硬信号 |
+| L2 | `static` | 代码文件模式扫描：凭据访问、混淆特征、prompt-injection 标记、eval 族与动态模块解析（拼接 / base64 解码 / 变量 require-import）；既有命中为 info，新命中为 finding；install 场景（无基线）凭据/混淆命中降为 info，prompt-injection 与动态代码执行始终为硬信号 |
 | L2 | `diff` | 新旧 tarball 对比：新增 lifecycle 脚本、新增依赖、新增 child_process、新增外联端点 |
 | L3 | `virustotal` | 先按哈希查询已有样本、未命中再上传（上传新文件不消耗每日配额）；≥2 引擎检出 → DENY。默认关闭，配置 API key 启用 |
 | L3 | `socket` | Socket.dev 包告警（gptMalware、installScripts、obfuscatedFile、typosquatting 等）；高风险告警 → ASK（`socket-flagged`）。默认关闭——注意免费 token 的配额是按调用扣减的余额制（每次 purl 查询消耗一块），余额耗尽后常态性配额不足（判定将封顶 ASK） |

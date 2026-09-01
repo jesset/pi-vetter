@@ -4,6 +4,8 @@ import { scanPatterns } from "./patterns.ts";
 /**
  * L2 static analysis. A pattern hit that also exists in the baseline is
  * pre-existing behavior (info); only new hits fail (behavior-change-first).
+ * Dynamic code execution (#40) is the install-scenario exception: with no
+ * baseline to vouch for pre-existing behaviour, eval/dynamic-module hits ask.
  */
 export const staticScanner: SecurityScanner = {
   name: "static",
@@ -64,17 +66,17 @@ export const staticScanner: SecurityScanner = {
       const infoHits: string[] = [];
       for (const [key, depFiles] of ctx.artifacts.dependencyFiles) {
         const dep = scanPatterns(depFiles);
-        const summary: Array<[string, string[], boolean]> = [
-          ["credential", dep.credentials, true],
-          ["obfuscation", dep.obfuscation, true],
-          ["prompt-injection", dep.promptInjection, true],
-          ["eval", dep.evalFamily, true],
-          ["dynamic-module", dep.dynamicModule, true],
-          ["child-process", dep.childProcess, false],
+        const summary: Array<{ label: string; hits: string[]; risky: boolean }> = [
+          { label: "credential", hits: dep.credentials, risky: true },
+          { label: "obfuscation", hits: dep.obfuscation, risky: true },
+          { label: "prompt-injection", hits: dep.promptInjection, risky: true },
+          { label: "eval", hits: dep.evalFamily, risky: true },
+          { label: "dynamic-module", hits: dep.dynamicModule, risky: true },
+          { label: "child-process", hits: dep.childProcess, risky: false },
         ];
-        for (const [label, list, risky] of summary) {
-          if (list.length === 0) continue;
-          (risky ? riskHits : infoHits).push(`${key}: ${label} x${list.length}`);
+        for (const { label, hits, risky } of summary) {
+          if (hits.length === 0) continue;
+          (risky ? riskHits : infoHits).push(`${key}: ${label} x${hits.length}`);
         }
       }
       if (riskHits.length > 0) {
@@ -105,23 +107,26 @@ export const staticScanner: SecurityScanner = {
       }
     }
 
-    if (candidate.evalFamily.length > 0) {
+    // #40: dynamic code execution asks by default in the install scenario
+    // (no baseline to vouch for pre-existing behaviour); in the update
+    // scenario the behavior-change-first gate applies — pre-existing hits
+    // are info, new hits fail.
+    const dynamicCode = [
+      ["static:eval", candidate.evalFamily, baseline?.evalFamily],
+      ["static:dynamic-module", candidate.dynamicModule, baseline?.dynamicModule],
+    ] as const;
+    for (const [key, hits, baselineHits] of dynamicCode) {
+      if (hits.length === 0) continue;
+      const isNew = !baseline || baselineHits === undefined || baselineHits.length === 0;
+      const label = key.replace("static:", "");
       evidences.push({
         scanner: "static",
-        key: "static:eval",
-        status: "fail",
-        detail: `eval-family markers found (${candidate.evalFamily.length}): ${candidate.evalFamily.slice(0, 3).join("; ")}`,
-        data: candidate.evalFamily,
-      });
-    }
-
-    if (candidate.dynamicModule.length > 0) {
-      evidences.push({
-        scanner: "static",
-        key: "static:dynamic-module",
-        status: "fail",
-        detail: `dynamic module resolution found (${candidate.dynamicModule.length}): ${candidate.dynamicModule.slice(0, 3).join("; ")}`,
-        data: candidate.dynamicModule,
+        key,
+        status: isNew ? "fail" : "info",
+        detail: isNew
+          ? `${label} found (${hits.length}): ${hits.slice(0, 3).join("; ")}`
+          : `pre-existing ${label} markers (${hits.length}), unchanged signal`,
+        data: hits,
       });
     }
 

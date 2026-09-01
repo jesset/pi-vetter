@@ -12,8 +12,8 @@ import { withHarness } from "./helpers/harness.ts";
  * - §15.4 encoded payload (base64-decoded require)      → ASK (#40)
  * - §15.5 dynamic import of a computed/variable module  → ASK (#40)
  * - §15.6 credential read combined with an outbound URL → ASK (update
- *   scenario; the install-scenario downgrade of direct credential hits is
- *   the documented design decision from #41)
+ *   scenario; the install-scenario downgrade of direct credential hits
+ *   predates #41 — see the static scanner's behavior-change-first design)
  * - §15.7 transitive risk never silently downgraded     → ASK (#41)
  * - §15.1/§15.2 (TOCTOU swap, tampered baseline) are covered by the
  *   fail-closed suite in fail-closed.e2e.test.ts (#36/#39); not duplicated.
@@ -34,6 +34,8 @@ describe("e2e: adversarial detection (audit report §15)", () => {
       'module.exports = require(Buffer.from("Y2hpbGRfcHJvY2Vzcw==", "base64").toString());\n',
     ],
     ["dynamic variable import (§15.5)", "module.exports = import(loadedModule);\n"],
+    ["literal-concatenation require (§15.3)", 'module.exports = require("child" + "_process");\n'],
+    ["computed dynamic import (§15.5)", 'module.exports = import(getUrl() + ".js");\n'],
   ])("asks on %s", async (_label, content) => {
     const pkg: FixturePackage = {
       name: "adversarial-pkg",
