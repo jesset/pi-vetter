@@ -22,7 +22,7 @@ import { NO_PACKAGES_MESSAGE, renderNotes, renderReports, summaryLine } from "./
 function assembleScanners(config: VetterConfig): SecurityScanner[] {
   const scanners: SecurityScanner[] = [
     createMetadataScanner(createMaintainerSnapshotStore()),
-    createOsvScanner(config.scanners.osv?.timeoutMs ?? 10_000),
+    createOsvScanner({ timeoutMs: config.scanners.osv?.timeoutMs ?? 10_000 }),
     createProvenanceScanner({
       ...(config.scanners.provenance?.timeoutMs !== undefined
         ? { timeoutMs: config.scanners.provenance.timeoutMs }

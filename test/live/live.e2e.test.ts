@@ -31,7 +31,7 @@ describe.skipIf(!process.env.LIVE_E2E)("live e2e: /vet against the real npm regi
         cache: createFileCache(join(dataDir, "cache"), config.cache),
         scanners: [
           createMetadataScanner(createMaintainerSnapshotStore(dataDir)),
-          createOsvScanner(10_000),
+          createOsvScanner({ timeoutMs: 10_000 }),
           createProvenanceScanner({ timeoutMs: 10_000 }),
           staticScanner,
           diffScanner,

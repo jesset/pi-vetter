@@ -1,4 +1,12 @@
-import type { Evidence, ScannerContext, ScanResult, SecurityScanner } from "../core/types.ts";
+import type {
+  Evidence,
+  Packument,
+  ScannerContext,
+  ScanResult,
+  SecurityScanner,
+} from "../core/types.ts";
+import { resolveVersion } from "../npm/dependencies.ts";
+import { fetchPackument } from "../npm/registry.ts";
 
 const MAX_DEPS = 50;
 
@@ -12,12 +20,36 @@ interface OsvVulnRef {
   modified?: string;
 }
 
+type Fetcher = (name: string, signal?: AbortSignal) => Promise<Packument>;
+
 /** Rough lower bound of an npm range for version-scoped OSV queries. */
 export function lowerBound(range: string): string | null {
   if (!range || range === "*" || range === "latest" || range.startsWith("workspace:")) return null;
   const m = /^(?:\^|~|>=?|v)?(\d+)\.(\d+)(?:\.(\d+))?/.exec(range.trim());
   if (!m) return null;
   return m[3] === undefined ? `${m[1]}.${m[2]}.0` : `${m[1]}.${m[2]}.${m[3]}`;
+}
+
+/**
+ * The version npm would actually install for a declared range (highest
+ * published in-range version), falling back to the range's lower bound when
+ * resolution fails; undefined keeps the query version-less (unparseable
+ * ranges: git/workspace specs).
+ */
+async function resolveDepVersion(
+  name: string,
+  range: string,
+  fetcher: Fetcher,
+  timeoutMs: number,
+): Promise<string | undefined> {
+  const lower = lowerBound(range);
+  if (lower === null) return undefined;
+  try {
+    const packument = await fetcher(name, AbortSignal.timeout(timeoutMs));
+    return resolveVersion(range, packument) ?? lower;
+  } catch {
+    return lower;
+  }
 }
 
 function depsOf(ctx: ScannerContext): Record<string, string> {
@@ -48,16 +80,23 @@ async function queryBatch(
   return (body.results ?? []).map((r) => r.vulns ?? []);
 }
 
-export function createOsvScanner(timeoutMs = 10_000): SecurityScanner {
+export function createOsvScanner(options?: {
+  timeoutMs?: number;
+  fetcher?: Fetcher;
+}): SecurityScanner {
+  const timeoutMs = options?.timeoutMs ?? 10_000;
+  const fetcher = options?.fetcher ?? fetchPackument;
   return {
     name: "osv",
     layer: 1,
     async scan(ctx: ScannerContext): Promise<ScanResult> {
       try {
         const deps = depsOf(ctx);
-        const depEntries = Object.entries(deps)
-          .slice(0, MAX_DEPS)
-          .map(([name, range]) => ({ name, version: lowerBound(range) ?? undefined }));
+        const depList = Object.entries(deps).slice(0, MAX_DEPS);
+        const versions = await Promise.all(
+          depList.map(([name, range]) => resolveDepVersion(name, range, fetcher, timeoutMs)),
+        );
+        const depEntries = depList.map(([name], i) => ({ name, version: versions[i] }));
 
         const queries = [
           { name: ctx.candidate.name, version: ctx.candidate.version as string | undefined },
@@ -102,7 +141,7 @@ export function createOsvScanner(timeoutMs = 10_000): SecurityScanner {
             detail:
               depMal.length > 0
                 ? `new dependency ${dep.name}@${dep.version ?? "*"} is listed as malicious: ${depMal.map((v) => v.id).join(", ")}`
-                : `new dependency ${dep.name} has advisories: ${vulns.map((v) => v.id).join(", ")}`,
+                : `new dependency ${dep.name}@${dep.version ?? "*"} has advisories: ${vulns.map((v) => v.id).join(", ")}`,
             data: { dependency: dep, vulns },
           });
         }
