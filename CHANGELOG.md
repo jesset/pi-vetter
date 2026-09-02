@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `/vet-install` publishes the full vetting report to the transcript before the package-selection dialog opens — previously the report only appeared after the modal dialog closed, so users had to choose without seeing the evidence; the progress widget is also cleared before the dialog instead of lingering through the selection phase (#50)
+
 ## [0.4.0] - 2026-09-01
 
 ### Added

@@ -280,6 +280,8 @@ export interface ProgressPort {
   start(names: string[]): void;
   item(name: string): void;
   tick(name: string): void;
+  /** Tears the progress display down early (e.g. before a blocking dialog). */
+  finish?(): void;
 }
 
 export async function runVet(
