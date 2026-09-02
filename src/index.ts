@@ -176,6 +176,7 @@ export default function (pi: ExtensionAPI): void {
             pinOnInstall: config.install.pinOnInstall,
             unpin,
             readInstalledFiles,
+            publishReport: send,
           },
           args,
           ctx,

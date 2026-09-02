@@ -16,6 +16,13 @@ export interface InstallCommandDeps extends VetDeps {
   unpin: (name: string, version: string) => void;
   /** Reads the installed package directory for post-install verification (#48). */
   readInstalledFiles?: InstalledFilesReader;
+  /**
+   * Publishes the vet report before the selection dialog opens — a modal
+   * dialog covers the transcript, so the user must be able to read the
+   * evidence while deciding (#50). When provided, the report is excluded
+   * from the returned content to avoid a duplicate transcript entry.
+   */
+  publishReport?: (content: string) => void;
 }
 
 export interface VetInstallResult {
@@ -44,12 +51,17 @@ export async function runVetInstall(
     return { content: header || NO_PACKAGES_MESSAGE, reports };
   }
 
+  // #50: the selection dialog is modal — clear the progress display and
+  // publish the report first, or the user decides blind.
+  progress?.finish?.();
+  const published = Boolean(header) && deps.publishReport !== undefined;
+  if (published) deps.publishReport?.(header);
+  const finalContent = (tail: string) =>
+    published ? tail : [header, tail].filter(Boolean).join("\n\n");
+
   const selection = await selectForInstall(toUiPort(ctx), reports);
   if (selection.cancelled || selection.selected.length === 0) {
-    return {
-      content: [header, "Nothing selected for installation."].filter(Boolean).join("\n\n"),
-      reports,
-    };
+    return { content: finalContent("Nothing selected for installation."), reports };
   }
 
   const chosen = reports.filter((r) => selection.selected.includes(r.candidate.name));
@@ -58,10 +70,5 @@ export async function runVetInstall(
     pinOnInstall: deps.pinOnInstall,
     ...(deps.readInstalledFiles ? { readInstalledFiles: deps.readInstalledFiles } : {}),
   });
-  return {
-    content: [header, `**Install results**\n${renderOutcomes(outcomes)}`]
-      .filter(Boolean)
-      .join("\n\n"),
-    reports,
-  };
+  return { content: finalContent(`**Install results**\n${renderOutcomes(outcomes)}`), reports };
 }

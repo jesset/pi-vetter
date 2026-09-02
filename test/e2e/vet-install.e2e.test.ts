@@ -23,6 +23,20 @@ const fakeCtx = (confirm: () => boolean | Promise<boolean>): ExtensionCommandCon
     },
   }) as unknown as ExtensionCommandContext;
 
+/** TUI context: the selection flow goes through the modal checkbox component. */
+const fakeTuiCtx = (onCustom: () => void): ExtensionCommandContext =>
+  ({
+    mode: "tui",
+    ui: {
+      custom: async () => {
+        onCustom();
+        return { selected: [], cancelled: true };
+      },
+      confirm: async () => false,
+      notify: () => undefined,
+    },
+  }) as unknown as ExtensionCommandContext;
+
 describe("e2e: /vet-install gated install flow", () => {
   it("installs the exact vetted version via a pinned spec, then restores the unpinned entry", async () => {
     await withHarness(
@@ -228,6 +242,159 @@ describe("e2e: /vet-install gated install flow", () => {
 
         expect(exec).not.toHaveBeenCalled();
         expect(result.content).toContain("Nothing selected for installation.");
+      },
+    );
+  });
+
+  it("publishes the report before the selection prompt and excludes it from the returned content (#50)", async () => {
+    await withHarness(
+      {
+        fixtures: [quietPkg],
+        installed: [
+          {
+            source: "npm:quiet-pkg",
+            name: "quiet-pkg",
+            version: "1.0.0",
+            pinned: false,
+            scope: "user",
+          },
+        ],
+      },
+      async ({ deps }) => {
+        const exec = vi.fn(async () => ({ stdout: "", stderr: "", code: 0 }));
+        const order: string[] = [];
+        const publishReport = vi.fn((content: string) => {
+          order.push("publish");
+          expect(content).toContain("quiet-pkg");
+          expect(content).toContain("**Evidence**");
+        });
+        const result = await runVetInstall(
+          { ...deps, exec, pinOnInstall: false, unpin: () => undefined, publishReport },
+          "npm:quiet-pkg",
+          fakeCtx(async () => {
+            order.push("confirm");
+            return false;
+          }),
+        );
+
+        expect(publishReport).toHaveBeenCalledOnce();
+        expect(order).toEqual(["publish", "confirm"]);
+        expect(result.content).toContain("Nothing selected for installation.");
+        expect(result.content).not.toContain("**Evidence**");
+      },
+    );
+  });
+
+  it("publishes the report before the TUI checkbox dialog opens (#50)", async () => {
+    await withHarness(
+      {
+        fixtures: [quietPkg],
+        installed: [
+          {
+            source: "npm:quiet-pkg",
+            name: "quiet-pkg",
+            version: "1.0.0",
+            pinned: false,
+            scope: "user",
+          },
+        ],
+      },
+      async ({ deps }) => {
+        const exec = vi.fn(async () => ({ stdout: "", stderr: "", code: 0 }));
+        const order: string[] = [];
+        const publishReport = vi.fn(() => {
+          order.push("publish");
+        });
+        const result = await runVetInstall(
+          { ...deps, exec, pinOnInstall: false, unpin: () => undefined, publishReport },
+          "npm:quiet-pkg",
+          fakeTuiCtx(() => {
+            order.push("custom");
+          }),
+        );
+
+        expect(publishReport).toHaveBeenCalledOnce();
+        expect(order).toEqual(["publish", "custom"]);
+        expect(result.content).not.toContain("**Evidence**");
+      },
+    );
+  });
+
+  it("keeps the published report out of the install-results content (#50)", async () => {
+    await withHarness(
+      {
+        fixtures: [quietPkg],
+        installed: [
+          {
+            source: "npm:quiet-pkg",
+            name: "quiet-pkg",
+            version: "1.0.0",
+            pinned: false,
+            scope: "user",
+          },
+        ],
+      },
+      async ({ deps }) => {
+        const exec = vi.fn(async (cmd: string, _args?: string[]) => ({
+          stdout:
+            cmd === "npm"
+              ? `${process.env.PI_VETTER_NPM_REGISTRY ?? "https://registry.npmjs.org/"}\n`
+              : "",
+          stderr: "",
+          code: 0,
+        }));
+        const publishReport = vi.fn();
+        const result = await runVetInstall(
+          { ...deps, exec, pinOnInstall: false, unpin: () => undefined, publishReport },
+          "npm:quiet-pkg",
+          fakeCtx(async () => true),
+        );
+
+        expect(publishReport).toHaveBeenCalledOnce();
+        expect(result.content).toContain("**Install results**");
+        expect(result.content).toContain("✓ quiet-pkg@1.1.0 installed");
+        expect(result.content).not.toContain("**Evidence**");
+      },
+    );
+  });
+
+  it("finishes progress before the selection prompt opens (#50)", async () => {
+    await withHarness(
+      {
+        fixtures: [quietPkg],
+        installed: [
+          {
+            source: "npm:quiet-pkg",
+            name: "quiet-pkg",
+            version: "1.0.0",
+            pinned: false,
+            scope: "user",
+          },
+        ],
+      },
+      async ({ deps }) => {
+        const exec = vi.fn(async () => ({ stdout: "", stderr: "", code: 0 }));
+        const order: string[] = [];
+        const progress = {
+          startResolve: () => undefined,
+          start: () => undefined,
+          item: () => undefined,
+          tick: () => undefined,
+          finish: () => {
+            order.push("finish");
+          },
+        };
+        await runVetInstall(
+          { ...deps, exec, pinOnInstall: false, unpin: () => undefined },
+          "npm:quiet-pkg",
+          fakeCtx(async () => {
+            order.push("confirm");
+            return false;
+          }),
+          progress,
+        );
+
+        expect(order).toEqual(["finish", "confirm"]);
       },
     );
   });
