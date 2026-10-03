@@ -91,4 +91,22 @@ describe("socket scanner", () => {
     expect(result.status).toBe("quota-exhausted");
     expect(result.evidences).toEqual([]);
   });
+
+  it("rejects with an actionable config error on 404 Organization not found", async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(json({ error: { message: "Organization not found", details: null } }, 404)),
+    );
+    const scanner = createSocketScanner({ apiKey: "k", orgSlug: "bad-slug", fetchImpl });
+    await expect(scanner.scan(ctx())).rejects.toThrow(
+      'Socket org slug "bad-slug" not found for this API key — check scanners.socket.orgSlug in the pi-vetter config',
+    );
+  });
+
+  it("keeps the generic failure message for other 404s (e.g. removed routes)", async () => {
+    const fetchImpl = vi.fn(() =>
+      Promise.resolve(json({ error: { message: "API route not found", details: null } }, 404)),
+    );
+    const scanner = createSocketScanner({ apiKey: "k", orgSlug: "o", fetchImpl });
+    await expect(scanner.scan(ctx())).rejects.toThrow("Socket purl scan failed: HTTP 404");
+  });
 });

@@ -84,7 +84,24 @@ export function createSocketScanner(options: {
         if (res.status === 429 || res.status === 402 || res.status === 403) {
           return { scanner: "socket", status: "quota-exhausted", evidences: [] };
         }
-        if (!res.ok) throw new Error(`Socket purl scan failed: HTTP ${res.status}`);
+        if (!res.ok) {
+          // Socket distinguishes 404s by body: "Organization not found" means the
+          // configured orgSlug is wrong for this API key (config error), while
+          // "API route not found" means the endpoint moved (code error).
+          let serverMessage: string | undefined;
+          try {
+            const body = (await res.json()) as { error?: { message?: string } } | undefined;
+            serverMessage = body?.error?.message;
+          } catch {
+            // non-JSON error body: fall through to the generic message
+          }
+          if (res.status === 404 && serverMessage === "Organization not found") {
+            throw new Error(
+              `Socket org slug "${orgSlug}" not found for this API key — check scanners.socket.orgSlug in the pi-vetter config`,
+            );
+          }
+          throw new Error(`Socket purl scan failed: HTTP ${res.status}`);
+        }
         const body = (await res.json()) as unknown;
         const report = (Array.isArray(body) ? body[0] : body) as
           | { alerts?: SocketAlert[] }
