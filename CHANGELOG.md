@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-03
+
 ### Fixed
 
 - Socket scanner 404s are now diagnosable: when the Socket API answers `Organization not found`, the incomplete-evidence detail names the configured org slug and points at `scanners.socket.orgSlug` in the config instead of a bare `HTTP 404` (other 404s keep the generic message)
